@@ -198,3 +198,10 @@ class Storage:
             d["source_items"] = json.loads(d["source_items"])
             out.append(d)
         return out
+
+    def delete_project(self, project_id):
+        for table in ("messages", "strategic_items", "canvas_blocks",
+                      "interventions", "knowledge_docs"):
+            self.conn.execute(f"DELETE FROM {table} WHERE project_id = ?", (project_id,))
+        self.conn.execute("DELETE FROM projects WHERE id = ?", (project_id,))
+        self.conn.commit()
