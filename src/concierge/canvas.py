@@ -1,0 +1,11 @@
+BMC_BLOCKS = [
+    "value_proposition",
+    "customer_segments",
+    "channels",
+    "customer_relationships",
+    "revenue_streams",
+    "key_resources",
+    "key_activities",
+    "key_partnerships",
+    "cost_structure",
+]

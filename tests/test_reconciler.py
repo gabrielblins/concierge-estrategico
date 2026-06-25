@@ -1,0 +1,37 @@
+from concierge.reconciler import Reconciler
+from concierge.models import ItemStatus
+
+
+def test_reconcile_returns_valid_transitions(fake_llm):
+    llm = fake_llm(responses=[{
+        "transitions": [
+            {"item_id": 1, "new_status": "validated", "supersedes_id": None},
+            {"item_id": 2, "new_status": "discarded", "supersedes_id": 1},
+        ]
+    }])
+    r = Reconciler(llm)
+    out = r.reconcile(
+        new_items=[{"id": 1, "type": "hypothesis", "content": "SMBs will pay"}],
+        active_items=[{"id": 2, "type": "decision", "content": "target enterprise"}],
+    )
+    assert len(out) == 2
+    assert out[0].new_status == ItemStatus.VALIDATED
+
+
+def test_reconcile_drops_unknown_ids_and_bad_status(fake_llm):
+    llm = fake_llm(responses=[{
+        "transitions": [
+            {"item_id": 999, "new_status": "validated", "supersedes_id": None},
+            {"item_id": 1, "new_status": "active", "supersedes_id": None},
+        ]
+    }])
+    r = Reconciler(llm)
+    out = r.reconcile(new_items=[{"id": 1, "type": "decision", "content": "x"}], active_items=[])
+    # item 999 unknown -> dropped; status 'active' is not validated/discarded -> dropped
+    assert out == []
+
+
+def test_reconcile_returns_empty_on_invalid(fake_llm):
+    llm = fake_llm(responses=[{"transitions": "bad"}, {"transitions": "bad"}])
+    r = Reconciler(llm)
+    assert r.reconcile([], []) == []
