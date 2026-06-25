@@ -45,7 +45,7 @@ class Orchestrator:
                 self.storage.set_item_status(t.item_id, t.new_status)
                 if t.supersedes_id is not None:
                     self.storage.supersede_item(t.supersedes_id, t.item_id)
-        active = self.storage.items_by_status(project_id, [ItemStatus.ACTIVE])
+        active = self.storage.items_by_status(project_id, [ItemStatus.ACTIVE, ItemStatus.VALIDATED])
         current = self.storage.get_blocks(project_id)
         block_updates = self.updater.update(active, current)
         for b in block_updates:

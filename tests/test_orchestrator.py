@@ -130,3 +130,45 @@ def test_check_silent_when_mode_silent(fake_llm):
     pid = o.storage.get_or_create_project(100, "Acme")
     o.storage.set_mode(pid, ProjectMode.SILENT)
     assert o.check_coherence(pid, 1, "vamos priorizar enterprise") is None
+
+
+def test_run_sync_builds_canvas_from_validated_items(fake_llm):
+    import sqlite3
+    from concierge.storage import Storage
+    from concierge.extractor import Extractor
+    from concierge.updater import CanvasUpdater
+    from concierge.guardian import Guardian
+    from concierge.reconciler import Reconciler
+    from concierge.config import Settings
+    from concierge.models import ItemStatus
+
+    conn = sqlite3.connect(":memory:")
+    s = Storage(conn); s.init_schema()
+    extractor_llm = fake_llm(responses=[{
+        "items": [{"type": "decision", "content": "Target SMBs", "confidence": 0.9}]
+    }])
+    # The updater fake will only return a block if it actually received the item.
+    # We assert on the call it received, proving the item list was non-empty.
+    updater_llm = fake_llm(responses=[{
+        "blocks": [{"block_name": "customer_segments", "content": "SMBs"}]
+    }])
+    reconciler_llm = fake_llm(responses=[{
+        "transitions": [{"item_id": 1, "new_status": "validated", "supersedes_id": None}]
+    }])
+    settings = Settings(telegram_token="t", openai_api_key="k", batch_size=1)
+    o = Orchestrator(
+        storage=s, extractor=Extractor(extractor_llm), updater=CanvasUpdater(updater_llm),
+        guardian=Guardian(llm=None), knowledge=None, settings=settings,
+        reconciler=Reconciler(reconciler_llm),
+    )
+    pid = o.ingest_message(100, "Acme", 1, "ana", "vamos focar em smbs", 1.0)
+    o.run_sync(pid)
+
+    # The item was promoted to VALIDATED by the reconciler...
+    assert len(s.items_by_status(pid, [ItemStatus.VALIDATED])) == 1
+    # ...and the canvas updater STILL received it (its user prompt must mention the item),
+    # so a block was written rather than an empty canvas.
+    updater_call = updater_llm.calls[0]  # (system, user)
+    assert "Target SMBs" in updater_call[1]
+    blocks = s.get_blocks(pid)
+    assert any(b["block_name"] == "customer_segments" for b in blocks)
