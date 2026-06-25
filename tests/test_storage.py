@@ -54,3 +54,13 @@ def test_intervention_roundtrip(storage):
     last = storage.last_intervention(pid)
     assert last["reason"] == "conflicts with X"
     assert last["item_id"] == 7
+
+
+def test_upsert_and_get_block(storage):
+    pid = storage.get_or_create_project(100, "Acme")
+    storage.upsert_block(pid, "value_proposition", "Save time on X", [1, 2])
+    storage.upsert_block(pid, "value_proposition", "Save time and money on X", [1, 2, 3])
+    blocks = storage.get_blocks(pid)
+    assert len(blocks) == 1
+    assert blocks[0]["content"] == "Save time and money on X"
+    assert blocks[0]["source_items"] == [1, 2, 3]

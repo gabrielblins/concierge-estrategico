@@ -1,3 +1,4 @@
+import json
 import sqlite3
 from concierge.models import ProjectMode, ItemType, ItemStatus
 
@@ -173,3 +174,27 @@ class Storage:
         )
         row = cur.fetchone()
         return dict(row) if row else None
+
+    def upsert_block(self, project_id, block_name, content, source_items):
+        self.conn.execute(
+            "INSERT INTO canvas_blocks (project_id, block_name, content, source_items, updated_at) "
+            "VALUES (?, ?, ?, ?, strftime('%s','now')) "
+            "ON CONFLICT(project_id, block_name) DO UPDATE SET "
+            "content = excluded.content, source_items = excluded.source_items, "
+            "updated_at = excluded.updated_at",
+            (project_id, block_name, content, json.dumps(source_items)),
+        )
+        self.conn.commit()
+
+    def get_blocks(self, project_id):
+        cur = self.conn.execute(
+            "SELECT block_name, content, source_items FROM canvas_blocks "
+            "WHERE project_id = ? ORDER BY block_name",
+            (project_id,),
+        )
+        out = []
+        for r in cur.fetchall():
+            d = dict(r)
+            d["source_items"] = json.loads(d["source_items"])
+            out.append(d)
+        return out
