@@ -70,6 +70,13 @@ class Storage:
         self.conn.executescript(SCHEMA)
         self.conn.commit()
 
+    def get_project(self, chat_id: int) -> int | None:
+        cur = self.conn.execute(
+            "SELECT id FROM projects WHERE telegram_chat_id = ?", (chat_id,)
+        )
+        row = cur.fetchone()
+        return row["id"] if row else None
+
     def get_or_create_project(self, chat_id: int, name: str) -> int:
         self.conn.execute(
             "INSERT OR IGNORE INTO projects (telegram_chat_id, name) VALUES (?, ?)",

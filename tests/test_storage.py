@@ -56,6 +56,12 @@ def test_intervention_roundtrip(storage):
     assert last["item_id"] == 7
 
 
+def test_get_project_returns_none_when_absent_and_id_when_present(storage):
+    assert storage.get_project(555) is None
+    pid = storage.get_or_create_project(555, "Acme")
+    assert storage.get_project(555) == pid
+
+
 def test_upsert_and_get_block(storage):
     pid = storage.get_or_create_project(100, "Acme")
     storage.upsert_block(pid, "value_proposition", "Save time on X", [1, 2])

@@ -11,6 +11,11 @@ CONSENT = (
     "e /forget para apagar todos os dados."
 )
 
+NOT_STARTED = (
+    "⚠️ Este projeto ainda não foi ativado. "
+    "Rode /start primeiro para que eu possa começar a acompanhar as conversas."
+)
+
 
 def handle_start(orchestrator, chat_id, chat_name):
     orchestrator.storage.get_or_create_project(chat_id, chat_name)
@@ -18,7 +23,9 @@ def handle_start(orchestrator, chat_id, chat_name):
 
 
 def handle_status(orchestrator, chat_id):
-    pid = orchestrator.storage.get_or_create_project(chat_id, str(chat_id))
+    pid = orchestrator.storage.get_project(chat_id)
+    if pid is None:
+        return NOT_STARTED
     blocks = orchestrator.storage.get_blocks(pid)
     if not blocks:
         return "Canvas ainda vazio. Continue a conversa — eu cuido do resto."
@@ -27,7 +34,9 @@ def handle_status(orchestrator, chat_id):
 
 
 def handle_why(orchestrator, chat_id):
-    pid = orchestrator.storage.get_or_create_project(chat_id, str(chat_id))
+    pid = orchestrator.storage.get_project(chat_id)
+    if pid is None:
+        return NOT_STARTED
     last = orchestrator.storage.last_intervention(pid)
     if last is None:
         return "Nenhuma intervenção ainda."
@@ -35,13 +44,17 @@ def handle_why(orchestrator, chat_id):
 
 
 def handle_forget(orchestrator, chat_id):
-    pid = orchestrator.storage.get_or_create_project(chat_id, str(chat_id))
+    pid = orchestrator.storage.get_project(chat_id)
+    if pid is None:
+        return NOT_STARTED
     orchestrator.storage.delete_project(pid)
     return "🗑️ Todos os dados deste projeto foram apagados."
 
 
 def handle_sync(orchestrator, chat_id):
-    pid = orchestrator.storage.get_or_create_project(chat_id, str(chat_id))
+    pid = orchestrator.storage.get_project(chat_id)
+    if pid is None:
+        return NOT_STARTED
     added = orchestrator.run_sync(pid)
     return f"🔄 Sync concluído. {added} itens novos."
 

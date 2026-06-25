@@ -54,5 +54,15 @@ def test_handle_forget_deletes_data(fake_llm):
 
 def test_handle_sync_returns_confirmation(fake_llm):
     o = _orch(fake_llm)
+    o.storage.get_or_create_project(100, "Acme")
     reply = bot.handle_sync(o, chat_id=100)
     assert "sync" in reply.lower()
+
+
+def test_handlers_require_start(fake_llm):
+    o = _orch(fake_llm)
+    # no project created for chat 777
+    assert bot.handle_status(o, 777) == bot.NOT_STARTED
+    assert bot.handle_why(o, 777) == bot.NOT_STARTED
+    assert bot.handle_forget(o, 777) == bot.NOT_STARTED
+    assert bot.handle_sync(o, 777) == bot.NOT_STARTED
