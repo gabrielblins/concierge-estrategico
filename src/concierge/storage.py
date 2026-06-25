@@ -1,5 +1,5 @@
 import sqlite3
-from concierge.models import ProjectMode
+from concierge.models import ProjectMode, ItemType, ItemStatus
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS projects (
@@ -118,3 +118,58 @@ class Storage:
             "SELECT mode FROM projects WHERE id = ?", (project_id,)
         )
         return ProjectMode(cur.fetchone()["mode"])
+
+    def add_item(self, project_id, type, content, confidence,
+                 source_message_id, status=ItemStatus.ACTIVE):
+        cur = self.conn.execute(
+            "INSERT INTO strategic_items "
+            "(project_id, type, content, status, confidence, source_message_id) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (project_id, type.value, content, status.value, confidence, source_message_id),
+        )
+        self.conn.commit()
+        return cur.lastrowid
+
+    def items_by_status(self, project_id, statuses):
+        placeholders = ",".join("?" for _ in statuses)
+        params = [project_id] + [s.value for s in statuses]
+        cur = self.conn.execute(
+            f"SELECT id, type, content, status, confidence, source_message_id "
+            f"FROM strategic_items WHERE project_id = ? AND status IN ({placeholders})",
+            params,
+        )
+        return [dict(r) for r in cur.fetchall()]
+
+    def supersede_item(self, old_item_id, new_item_id):
+        self.conn.execute(
+            "UPDATE strategic_items SET status = 'superseded', superseded_by = ?, "
+            "updated_at = strftime('%s','now') WHERE id = ?",
+            (new_item_id, old_item_id),
+        )
+        self.conn.commit()
+
+    def set_item_status(self, item_id, status):
+        self.conn.execute(
+            "UPDATE strategic_items SET status = ?, updated_at = strftime('%s','now') "
+            "WHERE id = ?",
+            (status.value, item_id),
+        )
+        self.conn.commit()
+
+    def add_intervention(self, project_id, message_id, item_id, reason, confidence):
+        cur = self.conn.execute(
+            "INSERT INTO interventions (project_id, message_id, item_id, reason, confidence) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (project_id, message_id, item_id, reason, confidence),
+        )
+        self.conn.commit()
+        return cur.lastrowid
+
+    def last_intervention(self, project_id):
+        cur = self.conn.execute(
+            "SELECT reason, confidence, item_id, message_id, sent_at "
+            "FROM interventions WHERE project_id = ? ORDER BY sent_at DESC, id DESC LIMIT 1",
+            (project_id,),
+        )
+        row = cur.fetchone()
+        return dict(row) if row else None

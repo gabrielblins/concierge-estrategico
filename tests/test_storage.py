@@ -1,4 +1,4 @@
-from concierge.models import ProjectMode
+from concierge.models import ProjectMode, ItemType, ItemStatus
 
 
 def test_get_or_create_project_is_idempotent(storage):
@@ -28,3 +28,29 @@ def test_mode_defaults_to_moderate_and_can_change(storage):
     assert storage.get_mode(pid) == ProjectMode.MODERATE
     storage.set_mode(pid, ProjectMode.SILENT)
     assert storage.get_mode(pid) == ProjectMode.SILENT
+
+
+def test_add_and_query_items_by_status(storage):
+    pid = storage.get_or_create_project(100, "Acme")
+    i1 = storage.add_item(pid, ItemType.HYPOTHESIS, "SMBs will pay", 0.8, None)
+    storage.set_item_status(i1, ItemStatus.VALIDATED)
+    validated = storage.items_by_status(pid, [ItemStatus.VALIDATED])
+    assert len(validated) == 1
+    assert validated[0]["content"] == "SMBs will pay"
+
+
+def test_supersede_marks_old_item(storage):
+    pid = storage.get_or_create_project(100, "Acme")
+    old = storage.add_item(pid, ItemType.DECISION, "target enterprise", 0.7, None)
+    new = storage.add_item(pid, ItemType.DECISION, "target SMBs", 0.9, None)
+    storage.supersede_item(old, new)
+    superseded = storage.items_by_status(pid, [ItemStatus.SUPERSEDED])
+    assert superseded[0]["id"] == old
+
+
+def test_intervention_roundtrip(storage):
+    pid = storage.get_or_create_project(100, "Acme")
+    storage.add_intervention(pid, message_id=3, item_id=7, reason="conflicts with X", confidence=0.9)
+    last = storage.last_intervention(pid)
+    assert last["reason"] == "conflicts with X"
+    assert last["item_id"] == 7
