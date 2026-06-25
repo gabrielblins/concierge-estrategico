@@ -6,3 +6,4 @@ __pycache__/
 concierge.db
 chroma/
 .env
+*.log
