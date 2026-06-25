@@ -47,7 +47,7 @@ def test_handle_forget_deletes_data(fake_llm):
     pid = o.storage.get_or_create_project(100, "Acme")
     o.storage.add_item(pid, ItemType.DECISION, "x", 0.5, None)
     bot.handle_forget(o, 100)
-    # project recreated empty on next access -> no items
+    # forget deleted the project; re-create it explicitly to confirm it's empty
     pid2 = o.storage.get_or_create_project(100, "Acme")
     assert o.storage.items_by_status(pid2, [ItemStatus.ACTIVE]) == []
 
