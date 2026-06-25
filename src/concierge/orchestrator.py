@@ -1,4 +1,4 @@
-from concierge.models import ItemStatus
+from concierge.models import ItemType, ItemStatus, ProjectMode
 
 
 class Orchestrator:
@@ -38,3 +38,28 @@ class Orchestrator:
             self.storage.upsert_block(project_id, b.block_name, b.content, [])
         self.storage.mark_processed([m["id"] for m in pending])
         return added
+
+    def check_coherence(self, project_id, message_id, text):
+        if self.storage.get_mode(project_id) == ProjectMode.SILENT:
+            return None
+        if not self.guardian.looks_strategic(text):
+            return None
+        known = self.storage.items_by_status(
+            project_id, [ItemStatus.VALIDATED, ItemStatus.DISCARDED]
+        )
+        context = ""
+        if self.knowledge is not None:
+            context = self.knowledge.query(project_id, text)
+        verdict = self.guardian.check(text, known, context)
+        if verdict is None:
+            return None
+        if verdict.contradicts and verdict.confidence >= self.settings.confidence_threshold:
+            self.storage.add_intervention(
+                project_id, message_id, None, verdict.reason, verdict.confidence
+            )
+            return (
+                "⚠️ Atenção à coerência estratégica:\n"
+                f"{verdict.reason}\n"
+                f"(item relacionado: {verdict.item_content})"
+            )
+        return None

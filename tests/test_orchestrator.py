@@ -1,12 +1,12 @@
 import pytest
+import sqlite3
 from concierge.config import Settings
 from concierge.storage import Storage
 from concierge.extractor import Extractor
 from concierge.updater import CanvasUpdater
 from concierge.guardian import Guardian
 from concierge.orchestrator import Orchestrator
-from concierge.models import ItemStatus
-import sqlite3
+from concierge.models import ItemType, ItemStatus, ProjectMode
 
 
 @pytest.fixture
@@ -49,3 +49,52 @@ def test_run_sync_creates_items_and_blocks(orch):
     assert blocks[0]["block_name"] == "customer_segments"
     # messages now processed
     assert orch.storage.unprocessed_messages(pid) == []
+
+
+def _orch_with_guardian(guardian_llm):
+    conn = sqlite3.connect(":memory:")
+    s = Storage(conn); s.init_schema()
+    settings = Settings(telegram_token="t", openai_api_key="k", confidence_threshold=0.75)
+    return Orchestrator(
+        storage=s, extractor=None, updater=None,
+        guardian=Guardian(guardian_llm), knowledge=None, settings=settings,
+    )
+
+
+def test_check_silent_on_trivial_message(fake_llm):
+    o = _orch_with_guardian(fake_llm(responses=[]))
+    pid = o.storage.get_or_create_project(100, "Acme")
+    assert o.check_coherence(pid, None, "kkk ok") is None
+    # no LLM call was made (prefilter blocked it)
+    assert o.guardian.llm.calls == []
+
+
+def test_check_alerts_on_high_confidence_contradiction(fake_llm):
+    o = _orch_with_guardian(fake_llm(responses=[{
+        "contradicts": True,
+        "item_content": "Validated SMB focus",
+        "reason": "proposes enterprise",
+        "confidence": 0.9,
+    }]))
+    pid = o.storage.get_or_create_project(100, "Acme")
+    o.storage.add_item(pid, ItemType.HYPOTHESIS, "Validated SMB focus", 0.9, None,
+                       status=ItemStatus.VALIDATED)
+    alert = o.check_coherence(pid, 1, "vamos priorizar enterprise agora")
+    assert alert is not None
+    assert "enterprise" in alert.lower() or "SMB" in alert
+    assert o.storage.last_intervention(pid)["confidence"] == 0.9
+
+
+def test_check_silent_below_threshold(fake_llm):
+    o = _orch_with_guardian(fake_llm(responses=[{
+        "contradicts": True, "item_content": "x", "reason": "maybe", "confidence": 0.5,
+    }]))
+    pid = o.storage.get_or_create_project(100, "Acme")
+    assert o.check_coherence(pid, 1, "vamos mudar o foco") is None
+
+
+def test_check_silent_when_mode_silent(fake_llm):
+    o = _orch_with_guardian(fake_llm(responses=[]))
+    pid = o.storage.get_or_create_project(100, "Acme")
+    o.storage.set_mode(pid, ProjectMode.SILENT)
+    assert o.check_coherence(pid, 1, "vamos priorizar enterprise") is None
