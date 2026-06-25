@@ -1,5 +1,5 @@
-python-telegram-bot==21.6
-openai==1.54.0
-pydantic==2.9.2
-chromadb==0.5.15
-pytest==8.3.3
+python-telegram-bot==22.8
+openai==2.44.0
+pydantic==2.13.4
+chromadb==1.5.9
+pytest==9.1.1

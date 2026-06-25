@@ -10,7 +10,7 @@
 
 ## Global Constraints
 
-- Python 3.14; all dependencies pinned in `requirements.txt`.
+- Python 3.14; all dependencies pinned in `requirements.txt`. Versions verified to install as binary wheels on 3.14: `python-telegram-bot==22.8`, `openai==2.44.0`, `pydantic==2.13.4`, `chromadb==1.5.9`, `pytest==9.1.1`. NOTE: `chromadb` (Task 11) is on the 1.x line and `openai` (Task 14) is on the 2.x line — their APIs may differ from older docs; verify against the installed version. A shared `.venv` (Python 3.14) exists at repo root; run all tests with it activated.
 - LLM provider: OpenAI / GPT. All GPT calls go through the `LLMClient` interface — never call `openai` directly from business logic.
 - All LLM structured output validated with Pydantic before use; invalid output is retried once then discarded (never written to the DB).
 - `strategic_items` is the source of truth; the canvas is a projection. Nothing is hard-deleted except via `/forget` — items become `status='discarded'` or `'superseded'`.
@@ -73,11 +73,11 @@ README.md
 - [ ] **Step 1: Create `requirements.txt`**
 
 ```
-python-telegram-bot==21.6
-openai==1.54.0
-pydantic==2.9.2
-chromadb==0.5.15
-pytest==8.3.3
+python-telegram-bot==22.8
+openai==2.44.0
+pydantic==2.13.4
+chromadb==1.5.9
+pytest==9.1.1
 ```
 
 - [ ] **Step 2: Create `.env.example`**
