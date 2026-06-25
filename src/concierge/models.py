@@ -48,3 +48,13 @@ class CanvasBlockUpdate(BaseModel):
 
 class CanvasUpdateResult(BaseModel):
     blocks: list[CanvasBlockUpdate]
+
+
+class ItemTransition(BaseModel):
+    item_id: int
+    new_status: ItemStatus
+    supersedes_id: int | None = None
+
+
+class ReconciliationResult(BaseModel):
+    transitions: list[ItemTransition]

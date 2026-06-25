@@ -7,6 +7,7 @@ from concierge.updater import CanvasUpdater
 from concierge.guardian import Guardian
 from concierge.knowledge import KnowledgeBase
 from concierge.orchestrator import Orchestrator
+from concierge.reconciler import Reconciler
 from concierge.llm.openai_client import OpenAILLMClient
 from concierge.bot import build_application
 
@@ -25,6 +26,7 @@ def main():
         guardian=Guardian(llm),
         knowledge=knowledge,
         settings=settings,
+        reconciler=Reconciler(llm),
     )
     app = build_application(orchestrator, settings.telegram_token)
     app.run_polling()

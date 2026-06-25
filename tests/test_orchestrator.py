@@ -93,6 +93,38 @@ def test_check_silent_below_threshold(fake_llm):
     assert o.check_coherence(pid, 1, "vamos mudar o foco") is None
 
 
+def test_run_sync_applies_reconciliation(fake_llm):
+    import sqlite3
+    from concierge.storage import Storage
+    from concierge.extractor import Extractor
+    from concierge.updater import CanvasUpdater
+    from concierge.guardian import Guardian
+    from concierge.reconciler import Reconciler
+    from concierge.config import Settings
+    from concierge.models import ItemStatus
+
+    conn = sqlite3.connect(":memory:")
+    s = Storage(conn); s.init_schema()
+    extractor_llm = fake_llm(responses=[{
+        "items": [{"type": "hypothesis", "content": "SMBs will pay", "confidence": 0.9}]
+    }])
+    updater_llm = fake_llm(responses=[{"blocks": []}])
+    reconciler_llm = fake_llm(responses=[{
+        "transitions": [{"item_id": 1, "new_status": "validated", "supersedes_id": None}]
+    }])
+    settings = Settings(telegram_token="t", openai_api_key="k", batch_size=1)
+    o = Orchestrator(
+        storage=s, extractor=Extractor(extractor_llm), updater=CanvasUpdater(updater_llm),
+        guardian=Guardian(llm=None), knowledge=None, settings=settings,
+        reconciler=Reconciler(reconciler_llm),
+    )
+    pid = o.ingest_message(100, "Acme", 1, "ana", "smbs will pay", 1.0)
+    o.run_sync(pid)
+    validated = o.storage.items_by_status(pid, [ItemStatus.VALIDATED])
+    assert len(validated) == 1
+    assert validated[0]["content"] == "SMBs will pay"
+
+
 def test_check_silent_when_mode_silent(fake_llm):
     o = _orch_with_guardian(fake_llm(responses=[]))
     pid = o.storage.get_or_create_project(100, "Acme")
