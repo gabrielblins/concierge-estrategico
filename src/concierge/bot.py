@@ -40,6 +40,12 @@ def handle_forget(orchestrator, chat_id):
     return "🗑️ Todos os dados deste projeto foram apagados."
 
 
+def handle_sync(orchestrator, chat_id):
+    pid = orchestrator.storage.get_or_create_project(chat_id, str(chat_id))
+    added = orchestrator.run_sync(pid)
+    return f"🔄 Sync concluído. {added} itens novos."
+
+
 def build_application(orchestrator, token):
     app = Application.builder().token(token).build()
 
@@ -59,17 +65,16 @@ def build_application(orchestrator, token):
         await update.message.reply_text(handle_forget(orchestrator, update.effective_chat.id))
 
     async def sync(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-        chat = update.effective_chat
-        pid = orchestrator.storage.get_or_create_project(chat.id, chat.title or str(chat.id))
-        added = orchestrator.run_sync(pid)
-        await update.message.reply_text(f"🔄 Sync concluído. {added} itens novos.")
+        await update.message.reply_text(handle_sync(orchestrator, update.effective_chat.id))
 
     async def on_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         chat = update.effective_chat
         msg = update.message
+        user = msg.from_user
+        author = (user.username or user.first_name) if user else "unknown"
         pid = orchestrator.ingest_message(
             chat.id, chat.title or str(chat.id), msg.message_id,
-            msg.from_user.username or msg.from_user.first_name, msg.text, msg.date.timestamp(),
+            author, msg.text, msg.date.timestamp(),
         )
         alert = orchestrator.check_coherence(pid, msg.message_id, msg.text)
         if alert:

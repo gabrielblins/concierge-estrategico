@@ -50,3 +50,9 @@ def test_handle_forget_deletes_data(fake_llm):
     # project recreated empty on next access -> no items
     pid2 = o.storage.get_or_create_project(100, "Acme")
     assert o.storage.items_by_status(pid2, [ItemStatus.ACTIVE]) == []
+
+
+def test_handle_sync_returns_confirmation(fake_llm):
+    o = _orch(fake_llm)
+    reply = bot.handle_sync(o, chat_id=100)
+    assert "sync" in reply.lower()
