@@ -70,20 +70,17 @@ class Storage:
         self.conn.commit()
 
     def get_or_create_project(self, chat_id: int, name: str) -> int:
-        cur = self.conn.execute(
-            "SELECT id FROM projects WHERE telegram_chat_id = ?", (chat_id,)
-        )
-        row = cur.fetchone()
-        if row:
-            return row["id"]
-        cur = self.conn.execute(
-            "INSERT INTO projects (telegram_chat_id, name) VALUES (?, ?)",
+        self.conn.execute(
+            "INSERT OR IGNORE INTO projects (telegram_chat_id, name) VALUES (?, ?)",
             (chat_id, name),
         )
         self.conn.commit()
-        return cur.lastrowid
+        cur = self.conn.execute(
+            "SELECT id FROM projects WHERE telegram_chat_id = ?", (chat_id,)
+        )
+        return cur.fetchone()["id"]
 
-    def add_message(self, project_id, telegram_msg_id, author, text, ts):
+    def add_message(self, project_id: int, telegram_msg_id: int, author: str, text: str, ts: float) -> int | None:
         try:
             cur = self.conn.execute(
                 "INSERT INTO messages (project_id, telegram_msg_id, author, text, ts) "
