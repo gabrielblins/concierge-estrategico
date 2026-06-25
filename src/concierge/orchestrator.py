@@ -1,4 +1,4 @@
-from concierge.models import ItemType, ItemStatus, ProjectMode
+from concierge.models import ItemStatus, ProjectMode
 
 
 class Orchestrator:
