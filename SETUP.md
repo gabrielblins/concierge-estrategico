@@ -33,12 +33,12 @@ pip install -r requirements.txt
 Verify the install:
 
 ```bash
-pytest -q                       # expect: 48 passed
+pytest -q                       # expect: 60 passed
 PYTHONPATH=src python -c "import concierge.main; print('imports ok')"
 ```
 
 Pinned versions: `python-telegram-bot==22.8`, `openai==2.44.0`,
-`pydantic==2.13.4`, `chromadb==1.5.9`, `pytest==9.1.1`.
+`google-genai==2.10.0`, `pydantic==2.13.4`, `chromadb==1.5.9`, `pytest==9.1.1`.
 
 ---
 
@@ -68,21 +68,46 @@ Copy the example env file and fill it in:
 cp .env.example .env
 ```
 
-Edit `.env`:
+Edit `.env`. You choose the **LLM provider** with `LLM_PROVIDER` — set it to
+`openai` or `gemini`, and fill in only that provider's key.
+
+**Using Gemini (Google AI Studio key):**
 
 ```
 TELEGRAM_TOKEN=123456789:AAExxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-OPENAI_API_KEY=sk-...your-key...
+LLM_PROVIDER=gemini
+GEMINI_API_KEY=...your-gemini-key...
+GEMINI_MODEL=gemini-3.5-flash
 DB_PATH=concierge.db
 CHROMA_PATH=./chroma
 BATCH_SIZE=15
 CONFIDENCE_THRESHOLD=0.75
 ```
 
+**Using OpenAI instead:**
+
+```
+TELEGRAM_TOKEN=123456789:AAExxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+LLM_PROVIDER=openai
+OPENAI_API_KEY=sk-...your-key...
+OPENAI_MODEL=gpt-4o-mini
+DB_PATH=concierge.db
+CHROMA_PATH=./chroma
+BATCH_SIZE=15
+CONFIDENCE_THRESHOLD=0.75
+```
+
+> Get a Gemini key from **Google AI Studio** (aistudio.google.com → "Get API
+> key"). The default model `gemini-3.5-flash` is fast and supports JSON output;
+> switch to `gemini-2.5-flash` via `GEMINI_MODEL` if your key lacks 3.5 access.
+
 **Tuning knobs for testing:**
 
 | Variable | Default | What it does | Demo tip |
 |---|---|---|---|
+| `LLM_PROVIDER` | `openai` | Which LLM backend to use (`openai` or `gemini`) | Set to `gemini` to use your Gemini key |
+| `GEMINI_MODEL` | `gemini-3.5-flash` | Gemini model id (when provider is gemini) | Fall back to `gemini-2.5-flash` if 3.5 isn't available on your key |
+| `OPENAI_MODEL` | `gpt-4o-mini` | OpenAI model id (when provider is openai) | — |
 | `BATCH_SIZE` | 15 | Messages buffered before an automatic canvas sync | Set to **3** so the canvas updates after just a few messages instead of waiting for 15 |
 | `CONFIDENCE_THRESHOLD` | 0.75 | Minimum confidence for the guardian to post an alert | Lower to ~0.6 if you want the guardian to speak up more eagerly during a demo |
 
@@ -92,8 +117,9 @@ Export the variables into your shell before running:
 set -a; source .env; set +a
 ```
 
-(The bot also fails fast with a clear message if `TELEGRAM_TOKEN` or
-`OPENAI_API_KEY` is empty.)
+The bot fails fast with a clear message if `TELEGRAM_TOKEN` or the **chosen
+provider's** key is empty (e.g. `LLM_PROVIDER=gemini` with no `GEMINI_API_KEY`),
+or if `LLM_PROVIDER` is set to something other than `openai`/`gemini`.
 
 ---
 
@@ -198,7 +224,9 @@ project isn't active, they reply asking you to `/start`.
 | Canvas never updates | Not enough messages to hit `BATCH_SIZE`. Send `/sync`, or lower `BATCH_SIZE`. |
 | Guardian never alerts | Nothing is `validated` yet, or confidence below threshold. Send a decisive batch first; lower `CONFIDENCE_THRESHOLD`. |
 | First RAG/embedding use hangs briefly | One-time ~80 MB model download to `~/.cache/chroma`. Wait it out; subsequent runs are fast. |
-| OpenAI auth/quota errors | Check `OPENAI_API_KEY` and account credits. Extraction/guardian fail silently (no group spam) but the canvas won't update. |
+| LLM auth/quota errors | Check the chosen provider's key (`OPENAI_API_KEY` or `GEMINI_API_KEY`) and account credits/quota. Extraction/guardian fail silently (no group spam) but the canvas won't update. |
+| `Unknown LLM_PROVIDER '...'` on startup | `LLM_PROVIDER` must be exactly `openai` or `gemini`. |
+| Gemini `404`/model-not-found | Your key lacks access to `gemini-3.5-flash`. Set `GEMINI_MODEL=gemini-2.5-flash`. |
 
 ---
 

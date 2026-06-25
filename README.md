@@ -8,7 +8,7 @@ and alerts the team when discussions contradict validated strategy.
 
     python -m venv .venv && source .venv/bin/activate
     pip install -r requirements.txt
-    cp .env.example .env   # fill in TELEGRAM_TOKEN and OPENAI_API_KEY
+    cp .env.example .env   # set TELEGRAM_TOKEN, pick LLM_PROVIDER (openai|gemini), fill that provider's key
 
 ## Run
 
