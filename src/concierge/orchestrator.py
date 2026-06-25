@@ -1,4 +1,4 @@
-from concierge.models import ItemType, ItemStatus
+from concierge.models import ItemStatus
 
 
 class Orchestrator:

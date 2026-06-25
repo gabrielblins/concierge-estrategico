@@ -44,6 +44,7 @@ def test_run_sync_creates_items_and_blocks(orch):
     assert added == 1
     items = orch.storage.items_by_status(pid, [ItemStatus.ACTIVE])
     assert items[0]["content"] == "Target SMBs"
+    assert items[0]["source_message_id"] is not None
     blocks = orch.storage.get_blocks(pid)
     assert blocks[0]["block_name"] == "customer_segments"
     # messages now processed
