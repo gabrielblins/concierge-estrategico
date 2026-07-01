@@ -66,3 +66,69 @@ def test_handlers_require_start(fake_llm):
     assert bot.handle_why(o, 777) == bot.NOT_STARTED
     assert bot.handle_forget(o, 777) == bot.NOT_STARTED
     assert bot.handle_sync(o, 777) == bot.NOT_STARTED
+
+
+class _FakeMaterialService:
+    def __init__(self, mtype, chunks=4, error=None):
+        from concierge.models import MaterialType
+        self.mtype = MaterialType(mtype)
+        self.chunks = chunks
+        self.error = error
+        self.calls = []
+
+    def add_material(self, project_id, filename, text):
+        if self.error:
+            raise self.error
+        self.calls.append((project_id, filename, text))
+        return self.mtype, self.chunks
+
+
+class _FakeKnowledge:
+    def __init__(self):
+        self.deleted = []
+
+    def delete(self, project_id):
+        self.deleted.append(project_id)
+
+
+def test_handle_upload_text_announces_capability(fake_llm):
+    o = _orch(fake_llm)
+    o.storage.get_or_create_project(100, "Acme")
+    svc = _FakeMaterialService("validation_guide")
+    reply = bot.handle_upload_text(o, svc, 100, "como validar hipóteses...")
+    assert "guia de validação" in reply
+    assert "experimentos" in reply  # capability text
+    assert svc.calls[0][1] == "colado.txt"
+
+
+def test_handle_upload_requires_start(fake_llm):
+    o = _orch(fake_llm)
+    svc = _FakeMaterialService("generic")
+    assert bot.handle_upload_text(o, svc, 777, "abc") == bot.NOT_STARTED
+    assert bot.handle_upload_document(o, svc, 777, "a.txt", b"x") == bot.NOT_STARTED
+
+
+def test_handle_upload_document_reports_parse_error(fake_llm):
+    from concierge.materials import MaterialError
+    o = _orch(fake_llm)
+    o.storage.get_or_create_project(100, "Acme")
+    svc = _FakeMaterialService("generic")
+    reply = bot.handle_upload_document(o, svc, 100, "dados.xlsx", b"bin")
+    assert "não suportado" in reply.lower() or "Formato" in reply
+
+
+def test_handle_materials_lists_catalog(fake_llm):
+    o = _orch(fake_llm)
+    pid = o.storage.get_or_create_project(100, "Acme")
+    assert "nenhum material" in bot.handle_materials(o, 100).lower()
+    o.storage.add_knowledge_doc(pid, "manual.pdf", "canvas_guide", 10)
+    listing = bot.handle_materials(o, 100)
+    assert "manual.pdf" in listing and "guia de canvas" in listing
+
+
+def test_handle_forget_drops_vectors(fake_llm):
+    o = _orch(fake_llm)
+    pid = o.storage.get_or_create_project(100, "Acme")
+    o.knowledge = _FakeKnowledge()
+    bot.handle_forget(o, 100)
+    assert o.knowledge.deleted == [pid]

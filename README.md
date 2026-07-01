@@ -25,6 +25,8 @@ and alerts the team when discussions contradict validated strategy.
 - `/status` — show the current canvas
 - `/why` — explain the last coherence alert
 - `/forget` — delete all project data
+- `/upload` — (arquivo com legenda, reply a arquivo, ou texto colado) adiciona material de referência
+- `/materials` — lista os materiais ingeridos e as capacidades destravadas
 
 ## Privacy
 

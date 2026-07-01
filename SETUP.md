@@ -175,6 +175,8 @@ stopping and restarting keeps the project's strategic base.
 | `/status` | Show the current Business Model Canvas |
 | `/why` | Explain the last coherence alert (reason + confidence) |
 | `/forget` | Erase all stored data for this group |
+| `/upload` | (arquivo com legenda, reply a arquivo, ou texto colado) adiciona material de referência |
+| `/materials` | lista os materiais ingeridos e as capacidades destravadas |
 
 `/status`, `/sync`, `/why`, and `/forget` require `/start` first — if the
 project isn't active, they reply asking you to `/start`.
@@ -208,9 +210,7 @@ project isn't active, they reply asking you to `/start`.
   raise `BATCH_SIZE` and `CONFIDENCE_THRESHOLD` during long sessions.
 - The bot only acts in groups where `/start` was sent, and announces that it is
   monitoring. `/forget` erases SQLite data for the group.
-- **Known limitation (roadmap):** `/forget` clears the SQLite records but does
-  not yet drop the group's ChromaDB vector collection. This only matters once
-  document upload (`/upload`) is wired — not in the current MVP.
+- `/forget` now clears both the SQLite records and the group's ChromaDB vector collection.
 
 ---
 
