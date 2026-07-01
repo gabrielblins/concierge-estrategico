@@ -172,3 +172,57 @@ def test_run_sync_builds_canvas_from_validated_items(fake_llm):
     assert "Target SMBs" in updater_call[1]
     blocks = s.get_blocks(pid)
     assert any(b["block_name"] == "customer_segments" for b in blocks)
+
+
+class _SpyKnowledge:
+    def __init__(self):
+        self.calls = []
+
+    def query(self, project_id, question, k=3, material_types=None):
+        self.calls.append((question, tuple(material_types or ())))
+        return "CTX"
+
+
+def test_run_sync_queries_knowledge_per_module(fake_llm):
+    import sqlite3
+    from concierge.storage import Storage
+    from concierge.extractor import Extractor
+    from concierge.updater import CanvasUpdater
+    from concierge.guardian import Guardian
+    from concierge.reconciler import Reconciler
+    from concierge.config import Settings
+
+    conn = sqlite3.connect(":memory:")
+    s = Storage(conn); s.init_schema()
+    ex_llm = fake_llm(responses=[{"items": [
+        {"type": "decision", "content": "Target SMBs", "confidence": 0.9}]}])
+    up_llm = fake_llm(responses=[{"blocks": []}])
+    rc_llm = fake_llm(responses=[{"transitions": []}])
+    spy = _SpyKnowledge()
+    settings = Settings(telegram_token="t", openai_api_key="k", batch_size=1)
+    o = Orchestrator(
+        storage=s, extractor=Extractor(ex_llm), updater=CanvasUpdater(up_llm),
+        guardian=Guardian(llm=None), knowledge=spy, settings=settings,
+        reconciler=Reconciler(rc_llm),
+    )
+    pid = o.ingest_message(100, "Acme", 1, "ana", "vamos focar em smbs", 1.0)
+    o.run_sync(pid)
+    filters = {mt for _, mt in spy.calls}
+    assert ("custom_framework", "methodology") in filters          # extractor
+    assert ("canvas_guide", "custom_framework") in filters         # updater
+    assert ("custom_framework", "validation_guide") in filters     # reconciler
+    # and the extractor actually received the context
+    assert "REFERENCE MATERIAL:\nCTX" in ex_llm.calls[0][1]
+
+
+def test_check_coherence_uses_guardian_filter(fake_llm):
+    o = _orch_with_guardian(fake_llm(responses=[{
+        "contradicts": False, "item_content": None, "reason": "ok", "confidence": 0.1,
+    }]))
+    spy = _SpyKnowledge()
+    o.knowledge = spy
+    pid = o.storage.get_or_create_project(100, "Acme")
+    o.check_coherence(pid, 1, "vamos priorizar enterprise")
+    assert spy.calls[0][1] == (
+        "custom_framework", "generic", "methodology", "validation_guide"
+    )

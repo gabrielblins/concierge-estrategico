@@ -1,4 +1,5 @@
 from concierge.models import ItemStatus, ProjectMode
+from concierge.materials import types_for_module
 
 
 class Orchestrator:
@@ -20,11 +21,22 @@ class Orchestrator:
         pending = self.storage.unprocessed_messages(project_id)
         return len(pending) >= self.settings.batch_size
 
+    def _module_context(self, project_id, module, query_text):
+        if self.knowledge is None:
+            return ""
+        return self.knowledge.query(
+            project_id, query_text, material_types=types_for_module(module)
+        )
+
     def run_sync(self, project_id):
         pending = self.storage.unprocessed_messages(project_id)
         if not pending:
             return 0
-        items = self.extractor.extract(pending)
+        transcript = "\n".join(f"{m['author']}: {m['text']}" for m in pending)
+        qtext = transcript[-1500:]
+        items = self.extractor.extract(
+            pending, context=self._module_context(project_id, "extractor", qtext)
+        )
         new_ids = []
         for it in items:
             new_id = self.storage.add_item(
@@ -41,13 +53,19 @@ class Orchestrator:
                 i for i in self.storage.items_by_status(project_id, [ItemStatus.ACTIVE])
                 if i["id"] not in set(new_ids)
             ]
-            for t in self.reconciler.reconcile(new_items, prior_active):
+            for t in self.reconciler.reconcile(
+                new_items, prior_active,
+                context=self._module_context(project_id, "reconciler", qtext),
+            ):
                 self.storage.set_item_status(t.item_id, t.new_status)
                 if t.supersedes_id is not None:
                     self.storage.supersede_item(t.supersedes_id, t.item_id)
         active = self.storage.items_by_status(project_id, [ItemStatus.ACTIVE, ItemStatus.VALIDATED])
         current = self.storage.get_blocks(project_id)
-        block_updates = self.updater.update(active, current)
+        block_updates = self.updater.update(
+            active, current,
+            context=self._module_context(project_id, "updater", qtext),
+        )
         for b in block_updates:
             self.storage.upsert_block(project_id, b.block_name, b.content, [])
         self.storage.mark_processed([m["id"] for m in pending])
@@ -63,7 +81,9 @@ class Orchestrator:
         )
         context = ""
         if self.knowledge is not None:
-            context = self.knowledge.query(project_id, text)
+            context = self.knowledge.query(
+                project_id, text, material_types=types_for_module("guardian")
+            )
         verdict = self.guardian.check(text, known, context)
         if verdict is None:
             return None
