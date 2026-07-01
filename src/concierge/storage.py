@@ -55,6 +55,7 @@ CREATE TABLE IF NOT EXISTS knowledge_docs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     project_id INTEGER NOT NULL,
     filename TEXT NOT NULL,
+    material_type TEXT NOT NULL DEFAULT 'generic',
     uploaded_at REAL NOT NULL DEFAULT (strftime('%s','now')),
     chunk_count INTEGER NOT NULL DEFAULT 0
 );
@@ -68,6 +69,12 @@ class Storage:
 
     def init_schema(self) -> None:
         self.conn.executescript(SCHEMA)
+        try:
+            self.conn.execute(
+                "ALTER TABLE knowledge_docs ADD COLUMN material_type TEXT NOT NULL DEFAULT 'generic'"
+            )
+        except sqlite3.OperationalError:
+            pass  # column already exists
         self.conn.commit()
 
     def get_project(self, chat_id: int) -> int | None:
@@ -212,3 +219,21 @@ class Storage:
             self.conn.execute(f"DELETE FROM {table} WHERE project_id = ?", (project_id,))
         self.conn.execute("DELETE FROM projects WHERE id = ?", (project_id,))
         self.conn.commit()
+
+    def add_knowledge_doc(self, project_id: int, filename: str,
+                          material_type: str, chunk_count: int) -> int:
+        cur = self.conn.execute(
+            "INSERT INTO knowledge_docs (project_id, filename, material_type, chunk_count) "
+            "VALUES (?, ?, ?, ?)",
+            (project_id, filename, material_type, chunk_count),
+        )
+        self.conn.commit()
+        return cur.lastrowid
+
+    def list_knowledge_docs(self, project_id: int) -> list[dict]:
+        cur = self.conn.execute(
+            "SELECT id, filename, material_type, chunk_count, uploaded_at "
+            "FROM knowledge_docs WHERE project_id = ? ORDER BY uploaded_at, id",
+            (project_id,),
+        )
+        return [dict(r) for r in cur.fetchall()]
