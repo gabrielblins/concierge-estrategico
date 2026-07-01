@@ -64,8 +64,7 @@ def test_routing_covers_all_types_and_inverts():
     assert set(guardian_types) == {
         "validation_guide", "methodology", "custom_framework", "generic"
     }
-    assert types_for_module("updater") == sorted(["canvas_guide", "custom_framework"]) or \
-        set(types_for_module("updater")) == {"canvas_guide", "custom_framework"}
+    assert types_for_module("updater") == ["canvas_guide", "custom_framework"]
 
 
 def test_classify_returns_type_and_falls_back(fake_llm):

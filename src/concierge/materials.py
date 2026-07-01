@@ -91,7 +91,7 @@ class MaterialService:
         self.knowledge = knowledge
         self.storage = storage
 
-    def add_material(self, project_id: int, filename: str, text: str):
+    def add_material(self, project_id: int, filename: str, text: str) -> tuple[MaterialType, int]:
         mtype = classify(self.llm, filename, text)
         chunks = self.knowledge.ingest(
             project_id, filename, text, material_type=mtype.value
