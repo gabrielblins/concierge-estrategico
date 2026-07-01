@@ -18,11 +18,13 @@ class Reconciler:
     def __init__(self, llm):
         self.llm = llm
 
-    def reconcile(self, new_items, active_items):
+    def reconcile(self, new_items, active_items, context=""):
         known_ids = {i["id"] for i in new_items} | {i["id"] for i in active_items}
         new_txt = "\n".join(f"#{i['id']} [{i['type']}] {i['content']}" for i in new_items)
         active_txt = "\n".join(f"#{i['id']} [{i['type']}] {i['content']}" for i in active_items)
         user = f"NEW ITEMS:\n{new_txt}\n\nEXISTING ACTIVE ITEMS:\n{active_txt}"
+        if context:
+            user += f"\n\nREFERENCE MATERIAL:\n{context}"
         result = call_validated(self.llm, SYSTEM, user, ReconciliationResult)
         if result is None:
             return []

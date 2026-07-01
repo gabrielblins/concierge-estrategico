@@ -22,3 +22,9 @@ def test_update_returns_empty_on_invalid(fake_llm):
     llm = fake_llm(responses=[{"blocks": "bad"}, {"blocks": "bad"}])
     up = CanvasUpdater(llm)
     assert up.update([], []) == []
+
+
+def test_update_appends_reference_material(fake_llm):
+    llm = fake_llm(responses=[{"blocks": []}])
+    CanvasUpdater(llm).update([], [], context="manual do canvas diz Y")
+    assert "REFERENCE MATERIAL:\nmanual do canvas diz Y" in llm.calls[0][1]
