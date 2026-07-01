@@ -58,3 +58,15 @@ class ItemTransition(BaseModel):
 
 class ReconciliationResult(BaseModel):
     transitions: list[ItemTransition]
+
+
+class MaterialType(str, Enum):
+    CANVAS_GUIDE = "canvas_guide"
+    VALIDATION_GUIDE = "validation_guide"
+    METHODOLOGY = "methodology"
+    CUSTOM_FRAMEWORK = "custom_framework"
+    GENERIC = "generic"
+
+
+class ClassificationResult(BaseModel):
+    material_type: MaterialType
