@@ -28,6 +28,7 @@ and alerts the team when discussions contradict validated strategy.
 - `/upload` — (arquivo com legenda, reply a arquivo, ou texto colado) adiciona material de referência
 - `/materials` — lista os materiais ingeridos e as capacidades destravadas
 - `/personality` — define a voz do bot (presets: mentor, coach, zen, formal — ou descrição livre; `reset` limpa)
+- /canvas — abre o Mini App com o Business Model Canvas visual
 
 ## Participation
 
@@ -37,6 +38,17 @@ uploaded materials. It also makes rare spontaneous contributions (connections,
 material knowledge, questions, synthesis) gated by relevance and a cooldown —
 tune with `PARTICIPATION_ENABLED`, `PARTICIPATION_COOLDOWN`,
 `PARTICIPATION_THRESHOLD`.
+
+## Canvas Mini App
+
+Run the web app alongside the bot and expose it via an HTTPS tunnel:
+
+    PYTHONPATH=src python -m concierge.webapp        # serves on WEBAPP_PORT (8080)
+    cloudflared tunnel --url http://localhost:8080   # public HTTPS URL
+
+Register the Mini App with @BotFather (`/newapp`, pick a short name, set the
+tunnel URL) and put the short name in `WEBAPP_APP_NAME`. Then `/canvas` in the
+group posts a button that opens the live canvas inside Telegram.
 
 ## Privacy
 

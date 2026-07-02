@@ -7,3 +7,6 @@ concierge.db
 chroma/
 .env
 *.log
+ai-concierge.zip
+*.db-wal
+*.db-shm

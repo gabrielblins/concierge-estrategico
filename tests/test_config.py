@@ -52,3 +52,18 @@ def test_settings_participation_fields(monkeypatch):
     assert s2.participation_enabled is False
     assert s2.participation_cooldown == 3
     assert s2.participation_threshold == 0.5
+
+
+def test_settings_webapp_fields(monkeypatch):
+    monkeypatch.setenv("TELEGRAM_TOKEN", "tok")
+    monkeypatch.setenv("OPENAI_API_KEY", "okey")
+    monkeypatch.delenv("WEBAPP_APP_NAME", raising=False)
+    monkeypatch.delenv("WEBAPP_PORT", raising=False)
+    s = Settings.from_env()
+    assert s.webapp_app_name == ""
+    assert s.webapp_port == 8080
+    monkeypatch.setenv("WEBAPP_APP_NAME", "meucanvas")
+    monkeypatch.setenv("WEBAPP_PORT", "9000")
+    s2 = Settings.from_env()
+    assert s2.webapp_app_name == "meucanvas"
+    assert s2.webapp_port == 9000

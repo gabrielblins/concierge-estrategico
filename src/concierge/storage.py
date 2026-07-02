@@ -70,6 +70,7 @@ class Storage:
         self.conn.row_factory = sqlite3.Row
 
     def init_schema(self) -> None:
+        self.conn.execute("PRAGMA journal_mode=WAL")
         self.conn.executescript(SCHEMA)
         try:
             self.conn.execute(
@@ -301,3 +302,18 @@ class Storage:
                 (project_id, message_id),
             )
         return cur.fetchone()["n"]
+
+    def get_project_name(self, project_id: int) -> str:
+        cur = self.conn.execute(
+            "SELECT name FROM projects WHERE id = ?", (project_id,)
+        )
+        row = cur.fetchone()
+        return row["name"] if row else ""
+
+    def canvas_updated_at(self, project_id: int):
+        cur = self.conn.execute(
+            "SELECT MAX(updated_at) ts FROM canvas_blocks WHERE project_id = ?",
+            (project_id,),
+        )
+        row = cur.fetchone()
+        return float(row["ts"]) if row and row["ts"] is not None else None
