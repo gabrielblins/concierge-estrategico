@@ -226,3 +226,14 @@ def test_check_coherence_uses_guardian_filter(fake_llm):
     assert spy.calls[0][1] == (
         "custom_framework", "generic", "methodology", "validation_guide"
     )
+
+
+def test_check_coherence_passes_personality_as_style(fake_llm):
+    guardian_llm = fake_llm(responses=[{
+        "contradicts": False, "item_content": None, "reason": "ok", "confidence": 0.1,
+    }])
+    o = _orch_with_guardian(guardian_llm)
+    pid = o.storage.get_or_create_project(100, "Acme")
+    o.storage.set_personality(pid, "fale como um mentor direto")
+    o.check_coherence(pid, 1, "vamos priorizar enterprise")
+    assert "fale como um mentor direto" in guardian_llm.calls[0][0]
