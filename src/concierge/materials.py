@@ -48,11 +48,11 @@ def extract_text(filename: str, data: bytes) -> str:
 
 
 ROUTING = {
-    MaterialType.CANVAS_GUIDE: {"updater"},
-    MaterialType.VALIDATION_GUIDE: {"guardian", "reconciler"},
-    MaterialType.METHODOLOGY: {"extractor", "guardian"},
-    MaterialType.CUSTOM_FRAMEWORK: {"extractor", "updater", "guardian", "reconciler"},
-    MaterialType.GENERIC: {"guardian"},
+    MaterialType.CANVAS_GUIDE: {"updater", "participant"},
+    MaterialType.VALIDATION_GUIDE: {"guardian", "reconciler", "participant"},
+    MaterialType.METHODOLOGY: {"extractor", "guardian", "participant"},
+    MaterialType.CUSTOM_FRAMEWORK: {"extractor", "updater", "guardian", "reconciler", "participant"},
+    MaterialType.GENERIC: {"guardian", "participant"},
 }
 
 CAPABILITIES = {

@@ -1,0 +1,55 @@
+from concierge.llm.client import call_validated
+from concierge.models import Contribution, StyledText
+
+CONSIDER_SYSTEM = (
+    "You are a thoughtful member of a startup team's group chat. Given the "
+    "recent conversation, the team's strategic items, and reference material, "
+    "decide whether you have ONE contribution that genuinely adds value. Kinds: "
+    "connection (link what's being said to an existing strategic item), "
+    "knowledge (bring a relevant point from the reference material), "
+    "question (a socratic question that deepens a shallow discussion), "
+    "synthesis (summarize positions when a topic drags on). "
+    "If nothing truly adds value, return should_contribute=false. Never repeat "
+    "what was just said. Return JSON {\"should_contribute\": bool, "
+    "\"relevance\": 0..1, \"kind\": connection|knowledge|question|synthesis or null, "
+    "\"text\": the contribution, 1-3 sentences, in the conversation's language}."
+)
+
+RESPOND_SYSTEM = (
+    "You are a helpful member of a startup team's group chat and someone "
+    "addressed you directly. Answer conversationally and concisely using the "
+    "recent conversation, the team's strategic items, and the reference "
+    "material. Answer in the conversation's language. "
+    "Return JSON {\"text\": your reply}."
+)
+
+
+def _context(window, items, materials):
+    convo = "\n".join(f"{m['author']}: {m['text']}" for m in window)
+    items_txt = "\n".join(f"[{i['type']}] {i['content']}" for i in items)
+    return (
+        f"CONVERSATION:\n{convo}\n\n"
+        f"STRATEGIC ITEMS:\n{items_txt}\n\n"
+        f"REFERENCE MATERIAL:\n{materials}"
+    )
+
+
+class Participant:
+    def __init__(self, llm):
+        self.llm = llm
+
+    def _system(self, base, style):
+        return base + (f" Write in this voice: {style}" if style else "")
+
+    def consider(self, window, items, materials, style=""):
+        return call_validated(
+            self.llm, self._system(CONSIDER_SYSTEM, style),
+            _context(window, items, materials), Contribution,
+        )
+
+    def respond(self, window, items, materials, mention_text, style=""):
+        user = _context(window, items, materials) + f"\n\nADDRESSED TO YOU:\n{mention_text}"
+        result = call_validated(
+            self.llm, self._system(RESPOND_SYSTEM, style), user, StyledText
+        )
+        return result.text if result is not None else None
