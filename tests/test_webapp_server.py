@@ -77,8 +77,13 @@ def test_empty_canvas_returns_200(client_and_storage):
     assert body["blocks"] == [] and body["project"]["updated_at"] is None
 
 
-def test_index_served(client_and_storage):
+def test_index_served_with_full_grid(client_and_storage):
     client, _ = client_and_storage
     r = client.get("/")
     assert r.status_code == 200
-    assert "value_proposition" in r.text
+    for block in ["value_proposition", "customer_segments", "channels",
+                  "customer_relationships", "revenue_streams", "key_resources",
+                  "key_activities", "key_partnerships", "cost_structure"]:
+        assert block in r.text
+    assert "telegram-web-app.js" in r.text
+    assert "themeParams" in r.text

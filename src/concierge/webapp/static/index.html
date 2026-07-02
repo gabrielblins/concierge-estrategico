@@ -1,5 +1,173 @@
 <!DOCTYPE html>
-<html><body>
-value_proposition customer_segments channels customer_relationships
-revenue_streams key_resources key_activities key_partnerships cost_structure
-</body></html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Canvas Estratégico</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root{
+    --bg:#ffffff; --ink:#0f1419; --muted:#6b7785; --card:#f3f5f7;
+    --line:#dfe4e8; --accent:#2481cc; --ok:#2e9e5b;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    padding:12px;padding-bottom:80px}
+  header{margin-bottom:12px}
+  header h1{font-size:1.1rem}
+  header small{color:var(--muted)}
+  #state{color:var(--muted);padding:24px 4px;text-align:center}
+  #grid{display:grid;gap:8px;
+    grid-template-columns:repeat(10,1fr);
+    grid-template-areas:
+      "kp kp ka ka vp vp cr cr cs cs"
+      "kp kp kr kr vp vp ch ch cs cs"
+      "co co co co co re re re re re"}
+  .block{background:var(--card);border:1px solid var(--line);border-radius:10px;
+    padding:10px;min-height:96px;cursor:pointer}
+  .block h2{font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;
+    color:var(--accent);margin-bottom:6px}
+  .block p{font-size:.8rem;line-height:1.35;color:var(--ink);
+    display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden}
+  .block.empty p{color:var(--muted);font-style:italic}
+  [data-b="key_partnerships"]{grid-area:kp}
+  [data-b="key_activities"]{grid-area:ka}
+  [data-b="key_resources"]{grid-area:kr}
+  [data-b="value_proposition"]{grid-area:vp}
+  [data-b="customer_relationships"]{grid-area:cr}
+  [data-b="channels"]{grid-area:ch}
+  [data-b="customer_segments"]{grid-area:cs}
+  [data-b="cost_structure"]{grid-area:co}
+  [data-b="revenue_streams"]{grid-area:re}
+  @media (max-width:480px){
+    #grid{grid-template-columns:1fr;grid-template-areas:
+      "vp" "cs" "kp" "ka" "kr" "cr" "ch" "re" "co"}
+  }
+  #sheet{position:fixed;left:0;right:0;bottom:-100%;max-height:70vh;overflow:auto;
+    background:var(--bg);border-top:2px solid var(--accent);
+    border-radius:16px 16px 0 0;padding:16px;transition:bottom .25s ease;
+    box-shadow:0 -8px 30px rgba(0,0,0,.18)}
+  #sheet.open{bottom:0}
+  #sheet h3{font-size:.95rem;margin-bottom:8px}
+  #sheet .content{font-size:.85rem;line-height:1.4;margin-bottom:12px}
+  .item{display:flex;gap:8px;align-items:flex-start;padding:8px 0;
+    border-top:1px solid var(--line);font-size:.82rem}
+  .chip{flex:none;font-size:.68rem;padding:2px 8px;border-radius:999px;
+    border:1px solid var(--line);color:var(--muted)}
+  .chip.validated{border-color:var(--ok);color:var(--ok)}
+  .chip.active{border-color:var(--accent);color:var(--accent)}
+  #close{float:right;background:none;border:none;font-size:1.2rem;
+    color:var(--muted);cursor:pointer}
+</style>
+</head>
+<body>
+<header>
+  <h1 id="pname">Canvas Estratégico</h1>
+  <small id="updated"></small>
+</header>
+<div id="state">Carregando…</div>
+<div id="grid" hidden></div>
+<div id="sheet">
+  <button id="close">✕</button>
+  <h3 id="sheet-title"></h3>
+  <div class="content" id="sheet-content"></div>
+  <div id="sheet-items"></div>
+</div>
+<script>
+  const LABELS = {
+    key_partnerships: "Parcerias-chave", key_activities: "Atividades-chave",
+    key_resources: "Recursos-chave", value_proposition: "Proposta de valor",
+    customer_relationships: "Relacionamento", channels: "Canais",
+    customer_segments: "Segmentos de clientes", cost_structure: "Estrutura de custos",
+    revenue_streams: "Fontes de receita",
+  };
+  const ORDER = ["key_partnerships","key_activities","key_resources",
+    "value_proposition","customer_relationships","channels",
+    "customer_segments","cost_structure","revenue_streams"];
+  const tg = window.Telegram && window.Telegram.WebApp;
+  if (tg) {
+    tg.ready(); tg.expand();
+    const t = tg.themeParams || {};
+    const map = {bg_color:"--bg", text_color:"--ink", hint_color:"--muted",
+                 secondary_bg_color:"--card", button_color:"--accent"};
+    for (const [k, v] of Object.entries(map))
+      if (t[k]) document.documentElement.style.setProperty(v, t[k]);
+  }
+  const state = document.getElementById("state");
+  const grid = document.getElementById("grid");
+  let DATA = null;
+
+  function openSheet(block) {
+    document.getElementById("sheet-title").textContent = LABELS[block.block_name];
+    document.getElementById("sheet-content").textContent =
+      block.content || "Bloco ainda vazio.";
+    const box = document.getElementById("sheet-items");
+    box.innerHTML = "";
+    const ids = block.item_ids || [];
+    let items = DATA.items.filter(i => ids.includes(i.id));
+    let title = "Itens que sustentam este bloco";
+    if (!items.length) { items = DATA.items; title = "Base estratégica"; }
+    if (items.length) {
+      const h = document.createElement("h3"); h.textContent = title;
+      box.appendChild(h);
+      for (const i of items) {
+        const d = document.createElement("div"); d.className = "item";
+        d.innerHTML = `<span class="chip ${i.status}">${i.status}</span>` +
+                      `<span><b>${i.type}</b> — ${i.content}</span>`;
+        box.appendChild(d);
+      }
+    }
+    document.getElementById("sheet").classList.add("open");
+  }
+  document.getElementById("close").onclick = () =>
+    document.getElementById("sheet").classList.remove("open");
+
+  function render(data) {
+    DATA = data;
+    document.getElementById("pname").textContent =
+      data.project.name || "Canvas Estratégico";
+    if (data.project.updated_at)
+      document.getElementById("updated").textContent =
+        "atualizado em " + new Date(data.project.updated_at * 1000).toLocaleString();
+    const byName = Object.fromEntries(data.blocks.map(b => [b.block_name, b]));
+    grid.innerHTML = "";
+    for (const name of ORDER) {
+      const b = byName[name] || {block_name: name, content: "", item_ids: []};
+      const el = document.createElement("div");
+      el.className = "block" + (b.content ? "" : " empty");
+      el.dataset.b = name;
+      el.innerHTML = `<h2>${LABELS[name]}</h2><p>${b.content ||
+        "ainda em construção"}</p>`;
+      el.onclick = () => openSheet(b);
+      grid.appendChild(el);
+    }
+    if (!data.blocks.length)
+      state.textContent = "Canvas ainda em construção — continue a conversa no grupo.";
+    else state.hidden = true;
+    grid.hidden = false;
+  }
+
+  async function load() {
+    if (!tg || !tg.initData) {
+      state.textContent = "Abra pelo botão do bot no Telegram.";
+      return;
+    }
+    try {
+      const r = await fetch("/api/canvas", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({init_data: tg.initData}),
+      });
+      if (r.status === 401) { state.textContent = "Abra pelo botão do bot no Telegram."; return; }
+      if (r.status === 404) { state.textContent = "Projeto não encontrado — rode /start no grupo."; return; }
+      if (!r.ok) { state.textContent = "Erro ao carregar. Tente novamente."; return; }
+      render(await r.json());
+    } catch (e) {
+      state.textContent = "Erro de rede. Tente novamente.";
+    }
+  }
+  load();
+</script>
+</body>
+</html>
