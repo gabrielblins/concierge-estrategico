@@ -15,10 +15,12 @@ class CanvasUpdater:
     def __init__(self, llm):
         self.llm = llm
 
-    def update(self, active_items, current_blocks):
+    def update(self, active_items, current_blocks, context=""):
         items_txt = "\n".join(f"[{i['type']}] {i['content']}" for i in active_items)
         blocks_txt = "\n".join(f"{b['block_name']}: {b['content']}" for b in current_blocks)
         user = f"STRATEGIC ITEMS:\n{items_txt}\n\nCURRENT CANVAS:\n{blocks_txt}"
+        if context:
+            user += f"\n\nREFERENCE MATERIAL:\n{context}"
         result = call_validated(self.llm, SYSTEM, user, CanvasUpdateResult)
         if result is None:
             return []

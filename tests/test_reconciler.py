@@ -35,3 +35,10 @@ def test_reconcile_returns_empty_on_invalid(fake_llm):
     llm = fake_llm(responses=[{"transitions": "bad"}, {"transitions": "bad"}])
     r = Reconciler(llm)
     assert r.reconcile([], []) == []
+
+
+def test_reconcile_appends_reference_material(fake_llm):
+    llm = fake_llm(responses=[{"transitions": []}])
+    Reconciler(llm).reconcile([{"id": 1, "type": "decision", "content": "x"}], [],
+                              context="valide com 5 clientes")
+    assert "REFERENCE MATERIAL:\nvalide com 5 clientes" in llm.calls[0][1]

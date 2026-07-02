@@ -70,3 +70,14 @@ def test_upsert_and_get_block(storage):
     assert len(blocks) == 1
     assert blocks[0]["content"] == "Save time and money on X"
     assert blocks[0]["source_items"] == [1, 2, 3]
+
+
+def test_knowledge_doc_roundtrip_with_type(storage):
+    pid = storage.get_or_create_project(100, "Acme")
+    storage.add_knowledge_doc(pid, "manual-bmc.pdf", "canvas_guide", 12)
+    storage.add_knowledge_doc(pid, "notas.txt", "generic", 3)
+    docs = storage.list_knowledge_docs(pid)
+    assert len(docs) == 2
+    assert docs[0]["filename"] == "manual-bmc.pdf"
+    assert docs[0]["material_type"] == "canvas_guide"
+    assert docs[0]["chunk_count"] == 12

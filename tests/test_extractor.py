@@ -18,3 +18,11 @@ def test_extract_returns_empty_on_invalid(fake_llm):
     llm = fake_llm(responses=[{"items": "not a list"}, {"items": "still bad"}])
     ex = Extractor(llm)
     assert ex.extract([{"author": "ana", "text": "hi"}]) == []
+
+
+def test_extract_appends_reference_material(fake_llm):
+    llm = fake_llm(responses=[{"items": []}])
+    Extractor(llm).extract(
+        [{"author": "ana", "text": "oi"}], context="use o método X"
+    )
+    assert "REFERENCE MATERIAL:\nuse o método X" in llm.calls[0][1]

@@ -32,3 +32,19 @@ def test_coherence_verdict_allows_null_item():
     )
     assert v.contradicts is False
     assert v.item_content is None
+
+
+def test_material_type_values():
+    from concierge.models import MaterialType
+    assert {t.value for t in MaterialType} == {
+        "canvas_guide", "validation_guide", "methodology",
+        "custom_framework", "generic",
+    }
+
+
+def test_classification_result_parses_and_rejects():
+    from concierge.models import ClassificationResult, MaterialType
+    ok = ClassificationResult.model_validate({"material_type": "validation_guide"})
+    assert ok.material_type == MaterialType.VALIDATION_GUIDE
+    with pytest.raises(ValidationError):
+        ClassificationResult.model_validate({"material_type": "cookbook"})

@@ -14,8 +14,10 @@ class Extractor:
     def __init__(self, llm):
         self.llm = llm
 
-    def extract(self, messages):
+    def extract(self, messages, context=""):
         transcript = "\n".join(f"{m['author']}: {m['text']}" for m in messages)
+        if context:
+            transcript += f"\n\nREFERENCE MATERIAL:\n{context}"
         result = call_validated(self.llm, SYSTEM, transcript, ExtractionResult)
         if result is None:
             return []
