@@ -70,3 +70,7 @@ class MaterialType(str, Enum):
 
 class ClassificationResult(BaseModel):
     material_type: MaterialType
+
+
+class StyledText(BaseModel):
+    text: str
