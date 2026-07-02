@@ -1,4 +1,5 @@
 import sqlite3
+import time
 
 import pytest
 from fastapi.testclient import TestClient
@@ -22,7 +23,9 @@ def client_and_storage():
     return TestClient(app), st
 
 
-def _init(chat_id, auth_date="1000"):
+def _init(chat_id, auth_date=None):
+    if auth_date is None:
+        auth_date = str(int(time.time()))
     return sign_init_data({"auth_date": auth_date, "start_param": str(chat_id)}, TOKEN)
 
 
@@ -34,7 +37,7 @@ def test_unauthorized_without_valid_init_data(client_and_storage):
 
 def test_400_when_start_param_missing(client_and_storage):
     client, _ = client_and_storage
-    init = sign_init_data({"auth_date": "1000"}, TOKEN)
+    init = sign_init_data({"auth_date": str(int(time.time()))}, TOKEN)
     r = client.post("/api/canvas", json={"init_data": init})
     assert r.status_code == 400
 

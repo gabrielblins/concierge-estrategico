@@ -50,7 +50,7 @@ def create_app(settings, storage=None):
 
     @app.post("/api/canvas")
     def canvas(body: CanvasRequest):
-        if not validate_init_data(body.init_data, settings.telegram_token, max_age=float("inf")):
+        if not validate_init_data(body.init_data, settings.telegram_token):
             raise HTTPException(status_code=401, detail="unauthorized")
         fields = parse_init_data(body.init_data)
         try:
