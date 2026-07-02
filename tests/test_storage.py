@@ -112,3 +112,13 @@ def test_participation_cooldown_roundtrip(storage):
     assert storage.get_last_participation(pid) == m1
     assert storage.messages_since(pid, m1) == 2
     assert storage.messages_since(pid, m3) == 0
+
+
+def test_get_project_name_and_canvas_updated_at(storage):
+    assert storage.get_project_name(999) == ""
+    pid = storage.get_or_create_project(100, "Acme")
+    assert storage.get_project_name(pid) == "Acme"
+    assert storage.canvas_updated_at(pid) is None
+    storage.upsert_block(pid, "customer_segments", "SMBs", [1])
+    ts = storage.canvas_updated_at(pid)
+    assert isinstance(ts, float) and ts > 0

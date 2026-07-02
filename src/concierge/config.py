@@ -17,6 +17,8 @@ class Settings:
     participation_enabled: bool = True
     participation_cooldown: int = 10
     participation_threshold: float = 0.75
+    webapp_app_name: str = ""
+    webapp_port: int = 8080
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -38,4 +40,6 @@ class Settings:
             participation_threshold=float(
                 os.environ.get("PARTICIPATION_THRESHOLD", "0.75")
             ),
+            webapp_app_name=os.environ.get("WEBAPP_APP_NAME", ""),
+            webapp_port=int(os.environ.get("WEBAPP_PORT", "8080")),
         )
