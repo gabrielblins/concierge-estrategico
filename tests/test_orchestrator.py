@@ -342,3 +342,25 @@ def test_participate_none_participant_is_silent(fake_llm):
     pid = _seed(o, 3)
     assert o.participate(pid, 3, "vamos priorizar enterprise") is None
     assert o.respond_mention(pid, 3, "bot?") is None
+
+
+def test_participate_cooldown_survives_divergent_telegram_ids(fake_llm):
+    from concierge.models import Contribution
+    strong = Contribution(should_contribute=True, relevance=0.9,
+                          kind="connection", text="Liga com a hipótese X.")
+    p = _FakeParticipant(contribution=strong)
+    o = _orch_with_participant(fake_llm, p)  # cooldown=2
+    pid = o.storage.get_or_create_project(100, "Acme")
+    # Telegram ids diverge from row ids (offset +1000), like production
+    for i in range(1, 4):
+        o.storage.add_message(pid, 1000 + i, "ana", f"vamos priorizar o segmento {i}", float(i))
+    out = o.participate(pid, 1003, "vamos priorizar o segmento enterprise")
+    assert out == "Liga com a hipótese X."
+    # marker must be a ROW id (small), not the telegram id (1000+)
+    assert o.storage.get_last_participation(pid) <= 3
+    # two more messages arrive -> cooldown (2) elapses -> allowed to contribute again
+    o.storage.add_message(pid, 1004, "bob", "vamos priorizar o segmento saude", 4.0)
+    o.storage.add_message(pid, 1005, "ana", "vamos priorizar o segmento educacao", 5.0)
+    p.contribution = strong
+    out2 = o.participate(pid, 1005, "vamos priorizar o segmento educacao")
+    assert out2 == "Liga com a hipótese X."

@@ -131,7 +131,8 @@ class Orchestrator:
             return None
         if c.relevance < self.settings.participation_threshold or not c.text.strip():
             return None
-        self.storage.set_last_participation(project_id, message_id)
+        if window:
+            self.storage.set_last_participation(project_id, window[-1]["id"])
         return c.text
 
     def respond_mention(self, project_id, message_id, text):
