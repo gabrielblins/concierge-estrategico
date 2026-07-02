@@ -2,8 +2,10 @@
 
 > Um bot de Telegram que transforma as conversas de uma equipe de startup em uma
 > **base estratégica viva**: mantém o Business Model Canvas atualizado
-> automaticamente e alerta a equipe quando as discussões contradizem decisões já
-> validadas.
+> automaticamente, alerta quando a equipe contradiz decisões validadas,
+> **participa da conversa como um colega**, aprende com os **materiais de
+> referência da equipe** e mostra tudo num **Mini App visual** dentro do
+> próprio Telegram.
 
 ---
 
@@ -12,34 +14,44 @@
 ### O problema
 
 No começo de um projeto de inovação, as equipes usam frameworks estratégicos —
-**Business Model Canvas**, Canvas de Hipóteses, Design Thinking, mapas de
-personas — para organizar premissas, propostas de valor, segmentos de cliente e
-riscos. Essas ferramentas são ótimas no arranque, mas têm um problema crônico:
-**ninguém as mantém atualizadas.**
+**Business Model Canvas**, Canvas de Hipóteses, Design Thinking — para
+organizar premissas, propostas de valor e riscos. Essas ferramentas são ótimas
+no arranque, mas têm um problema crônico: **ninguém as mantém atualizadas.**
 
-Com o tempo, a equipe continua decidindo, mudando de direção e levantando
-hipóteses — só que isso acontece **nas conversas do dia a dia**, enquanto os
-canvas e documentos ficam congelados no passado. O resultado: decisões tomadas
-com base em hipóteses já superadas, retrabalho, e perda de foco.
+Com o tempo, a equipe continua decidindo e mudando de direção — só que isso
+acontece **nas conversas do dia a dia**, enquanto os canvas congelam no
+passado. O resultado: decisões tomadas sobre hipóteses já superadas,
+retrabalho e perda de foco.
 
 ### A solução
 
-Um bot de Telegram que **acompanha as conversas do grupo** e faz três coisas:
+Um bot de Telegram que **vive dentro do grupo da equipe** e:
 
 1. **Registra e estrutura** — extrai das mensagens os itens estratégicos
-   (decisões, hipóteses, premissas, riscos, tarefas, aprendizados).
-2. **Mantém o canvas vivo** — atualiza automaticamente o Business Model Canvas a
-   partir desses itens.
-3. **Guarda a coerência** — quando alguém propõe algo que contradiz uma decisão
-   ou hipótese já validada, o bot intervém com um alerta.
+   (decisões, hipóteses, premissas, riscos, tarefas, aprendizados) e gerencia
+   o ciclo de vida deles (ativo → validado → descartado/superado).
+2. **Mantém o canvas vivo** — reconstrói o Business Model Canvas a partir
+   dos itens que valem *agora*.
+3. **Guarda a coerência** — quando alguém propõe algo que contradiz uma
+   decisão validada, intervém com um alerta fundamentado.
+4. **Participa como colega** — responde quando mencionado e, raramente e com
+   critério, contribui espontaneamente: conecta ideias a decisões passadas,
+   traz conhecimento dos materiais, faz perguntas socráticas, sintetiza
+   discussões longas.
+5. **Aprende com os materiais da equipe** — livros, manuais e frameworks
+   enviados por `/upload` são classificados automaticamente e passam a
+   fundamentar as análises de cada módulo.
+6. **Fala na voz que a equipe escolher** — mentor direto, coach, conselheiro
+   zen, consultor formal, ou uma personalidade descrita livremente.
+7. **Mostra o canvas de verdade** — `/canvas` abre um Mini App dentro do
+   Telegram com a grade visual do BMC e drill-down nos itens.
 
-Tudo isso respeitando **consentimento e transparência**: o bot só age em grupos
-onde foi explicitamente ativado, avisa que está monitorando, explica *por que*
-interveio (`/why`) e permite apagar todos os dados (`/forget`).
+Tudo com **consentimento e transparência**: só age após `/start`, avisa que
+monitora, explica cada alerta (`/why`) e apaga tudo sob demanda (`/forget`).
 
 **Frase-síntese:** *transforma conversas de Telegram em uma base estratégica
-viva, mantendo canvas, hipóteses e decisões sempre atualizados, e alertando a
-equipe quando as discussões se afastam da estratégia definida.*
+viva — e devolve essa base à equipe como um colega que lembra, questiona e
+mostra o caminho.*
 
 ---
 
@@ -47,200 +59,165 @@ equipe quando as discussões se afastam da estratégia definida.*
 
 | Feature | O que faz |
 |---|---|
-| **Extração automática** | Lê as mensagens do grupo e identifica itens estratégicos (decisões, hipóteses, premissas, riscos, tarefas, aprendizados) usando um LLM. |
-| **Canvas vivo** | Reconstrói o Business Model Canvas (9 blocos) a partir dos itens estratégicos atuais. |
-| **Ciclo de vida dos itens** | Itens nascem `active`; o sistema os promove a `validated` ou marca como `discarded`/`superseded` conforme a equipe evolui. O canvas reflete só o que vale *agora*. |
-| **Guardião de coerência** | Detecta quando uma nova mensagem contradiz uma decisão/hipótese validada e posta um alerta — mas só quando tem confiança alta. |
-| **Filtro de custo** | Mensagens triviais ("ok", "kkk") nunca chegam ao LLM caro: um pré-filtro barato por palavras-chave decide o que vale analisar. |
-| **Base de conhecimento (RAG)** | A equipe pode alimentar o bot com materiais de referência (livros, manuais, frameworks); o guardião usa esse contexto para fundamentar as análises. |
-| **Dois provedores de LLM** | Funciona com **OpenAI** ou **Google Gemini**, escolhido por uma variável de ambiente (`LLM_PROVIDER`). |
-| **Transparência & consentimento** | `/start` ativa e avisa; `/why` explica o último alerta; `/forget` apaga tudo; comandos exigem ativação prévia. |
-| **Modo silencioso** | Cada projeto tem um modo (`silent`/`moderate`/`active`) que pode suprimir intervenções. |
+| **Extração automática** | Mensagens → itens estratégicos tipados (decisão, hipótese, premissa, risco, tarefa, aprendizado) via LLM. |
+| **Ciclo de vida dos itens** | Reconciliação automática: itens são promovidos a `validated` ou marcados `discarded`/`superseded` conforme a equipe evolui. |
+| **Canvas vivo** | Os 9 blocos do BMC re-sintetizados a partir dos itens ativos + validados. |
+| **Guardião de coerência** | Detecta contradições com o que foi validado/descartado; alerta só com confiança ≥ 0.75; pré-filtro barato evita custo em conversa trivial. |
+| **Participante de conversa** | Responde menções como colega (com toda a base + materiais como contexto). Contribuições espontâneas passam por 3 portões: cooldown, pré-filtro, relevância autoavaliada. Guardião tem prioridade — 1 voz por mensagem. |
+| **Materiais tipados (RAG)** | `/upload` de PDF/TXT/MD/DOCX ou texto colado; o LLM classifica (guia de canvas, guia de validação, metodologia, framework próprio, geral) e cada tipo alimenta só os módulos certos. `/materials` lista o catálogo. |
+| **Personalidade** | `/personality` com presets (mentor, coach, zen, formal) ou descrição livre. Alertas do guardião e falas do participante já nascem na voz (injeção de prompt, custo zero); respostas de comandos são reescritas com fallback seguro. |
+| **Canvas Mini App** | `/canvas` posta um botão que abre a grade visual do BMC dentro do Telegram (mobile e desktop), com drill-down nos itens. Servidor separado, initData validado por HMAC. |
+| **Dois provedores de LLM** | OpenAI ou Google Gemini via `LLM_PROVIDER` — zero mudança de código. |
+| **Transparência & consentimento** | `/start` ativa e avisa; `/why` explica alertas; `/forget` apaga SQLite **e** vetores; comandos exigem ativação prévia. |
 
 ---
 
-## 3. Como funciona — os dois modos
+## 3. Como funciona — os três caminhos de fala
 
-O sistema opera em **modo híbrido**: um caminho *passivo* (em lote) e um caminho
-*ativo* (por mensagem). Os dois rodam a partir do mesmo handler de mensagens.
-
-### Caminho passivo — manter o canvas (em lote)
-
-Roda quando acumulam mensagens suficientes (ou via `/sync`). É o que mantém o
-canvas atualizado.
+Cada mensagem do grupo percorre um funil que decide **se e como** o bot fala.
+No máximo **uma voz por mensagem**:
 
 ```
-1. Cada mensagem do grupo é salva (não processada ainda).
-2. Quando o nº de mensagens não-processadas atinge BATCH_SIZE (padrão 15),
-   dispara um "sync".
-3. SYNC:
-   a. Extractor lê o lote → itens estratégicos estruturados (JSON).
-   b. Itens novos entram como 'active'.
-   c. Reconciler compara os novos com os itens existentes e decide
-      transições: promover a 'validated' ou marcar antigos como
-      'superseded'/'discarded'.
-   d. Canvas Updater re-sintetiza os blocos do BMC a partir dos itens
-      que valem agora (active + validated).
-   e. As mensagens do lote são marcadas como processadas.
+mensagem chega
+   │
+   ├─ é MENÇÃO (@bot ou reply ao bot)?
+   │    └─ sim → PARTICIPANTE responde como colega
+   │             (conversa recente + base estratégica + materiais + voz)
+   │
+   └─ não → GUARDIÃO avalia coerência
+        │     pré-filtro barato (sem LLM) → contradiz item validado?
+        │     confiança ≥ 0.75 → ⚠️ alerta fundamentado
+        │
+        └─ guardião calou → PARTICIPANTE espontâneo (raro)
+              portão 1: habilitado? modo ≠ silent? cooldown ≥ 10 msgs?
+              portão 2: mensagem substantiva? (sem LLM)
+              portão 3: LLM decide-e-gera; só posta se relevância ≥ 0.75
+              tipos: conexão · conhecimento · pergunta · síntese
+
+em paralelo (lote): a cada BATCH_SIZE mensagens (ou /sync)
+   extrai itens → reconcilia status → re-sintetiza o canvas
 ```
 
-### Caminho ativo — guardião de coerência (por mensagem, seletivo)
-
-Roda a cada mensagem, mas é **seletivo** para não gerar ruído nem custo:
-
-```
-1. A cada mensagem nova:
-   - Se o projeto está em modo 'silent' → ignora.
-   - PRÉ-FILTRO BARATO (sem LLM): a mensagem parece uma decisão/proposta/
-     direcionamento? (busca palavras como "vamos", "priorizar", "hipótese",
-     "descartar", "pivot", "segmento"...) Se não → ignora.
-2. Se passou no pré-filtro:
-   - Busca os itens 'validated' e 'discarded' do projeto.
-   - Busca contexto de método na base de conhecimento (RAG), se houver.
-   - Pergunta ao LLM: esta mensagem contradiz algo? Com qual item?
-     Qual a confiança (0–1)?
-3. Se contradiz E confiança ≥ CONFIDENCE_THRESHOLD (padrão 0.75)
-   E modo ≠ silent → posta o alerta no grupo e registra a intervenção.
-4. Caso contrário → silêncio.
-```
-
-**Por que esse desenho controla ruído e custo:** o pré-filtro elimina a maioria
-das mensagens antes de gastar uma chamada de LLM; o limiar de confiança evita
-alertas em cima de ambiguidade ("melhor calar do que irritar"); e o sync em lote
-evita reprocessar o canvas a cada mensagem.
+**Custo em regime:** mensagem trivial = 0 chamadas de LLM; no pior caso,
+1 chamada de "voz" (guardião OU participante) por mensagem + o sync em lote.
 
 ---
 
 ## 4. Arquitetura
 
-O sistema é dividido em camadas com responsabilidades isoladas. Cada unidade tem
-um propósito único e se comunica por interfaces bem definidas.
-
 ```
-                       Telegram (grupo)
-                            │  long-polling
-                            ▼
-┌──────────────────────────────────────────────────────┐
-│  Bot Layer  (bot.py)                                   │
-│  recebe mensagens/comandos, envia respostas/alertas    │
-│  — handlers puros (testáveis sem Telegram)             │
-└───────────────────────────┬────────────────────────────┘
-                            ▼
-┌──────────────────────────────────────────────────────┐
-│  Orchestrator  (orchestrator.py)                       │
-│  o "cérebro": decide enfileirar / sincronizar / checar │
-└───┬──────────┬──────────┬──────────┬──────────┬────────┘
-    ▼          ▼          ▼          ▼          ▼
-┌────────┐ ┌────────┐ ┌──────────┐ ┌────────┐ ┌──────────┐
-│Extractor│ │Recon-  │ │Canvas    │ │Guardian│ │Knowledge │
-│         │ │ciler   │ │Updater   │ │        │ │Base (RAG)│
-└────┬────┘ └───┬────┘ └────┬─────┘ └───┬────┘ └────┬─────┘
-     │          │           │           │           │
-     └──────────┴─────┬─────┴───────────┘           │
-                      ▼                              ▼
-            ┌──────────────────┐          ┌──────────────────┐
-            │  LLMClient        │          │  ChromaDB         │
-            │  (OpenAI│Gemini)  │          │  (vetores RAG)    │
-            └──────────────────┘          └──────────────────┘
-                      │
-                      ▼
-            ┌──────────────────┐
-            │  Storage (SQLite) │
-            │  base estratégica │
-            └──────────────────┘
+                     Telegram (grupo)
+                       │           │ /canvas → link direto do Mini App
+                       ▼           ▼
+┌────────────────────────────┐   ┌──────────────────────────────┐
+│  Bot (concierge.main)      │   │  Mini App (concierge.webapp) │
+│  handlers puros + glue     │   │  FastAPI · initData HMAC     │
+└────────────┬───────────────┘   │  grade BMC + drill-down      │
+             ▼                   └──────────────┬───────────────┘
+┌────────────────────────────┐                  │ só leitura
+│  Orchestrator              │                  │
+│  menção/guardião/partici-  │                  │
+│  pante/sync (o funil §3)   │                  │
+└─┬────┬────┬────┬────┬──────┘                  │
+  ▼    ▼    ▼    ▼    ▼                         │
+Extract Recon Canvas Guard Participant          │
+  or    ciler Updater ian   + Stylist           │
+  └──────┴─────┬┴──────┴──────┘                 │
+               ▼                                │
+     ┌──────────────────┐   ┌───────────────┐  │
+     │ LLMClient        │   │ MaterialService│ │
+     │ (OpenAI│Gemini)  │   │ parse+classify │ │
+     └──────────────────┘   └───────┬───────┘  │
+               │                    ▼           │
+               ▼            ┌──────────────┐   │
+     ┌──────────────────┐   │ ChromaDB     │   │
+     │ SQLite (WAL) ◄───┼───┤ RAG tipado   │   │
+     │ base estratégica │◄──┘              │   │
+     └──────────▲───────┘   └──────────────┘   │
+                └───────────────────────────────┘
 ```
 
-### Componentes (e o arquivo de cada um)
+### Componentes (um arquivo, uma responsabilidade)
 
 | Componente | Arquivo | Responsabilidade |
 |---|---|---|
-| **Bot Layer** | `bot.py` | Interface com Telegram. Handlers *puros* (recebem o orchestrator + ids, devolvem texto) — sem lógica de negócio, testáveis sem rede. |
-| **Orchestrator** | `orchestrator.py` | Roteamento do modo híbrido: `ingest_message`, `should_sync`, `run_sync` (passivo), `check_coherence` (ativo). |
-| **Extractor** | `extractor.py` | Lote de mensagens → itens estratégicos (JSON validado). |
-| **Reconciler** | `reconciler.py` | Decide transições de status (promover a `validated`, supersedir antigos) — é o que torna o guardião eficaz. |
-| **Canvas Updater** | `updater.py` | Itens vivos → blocos do BMC. Filtra nomes de bloco inválidos. |
-| **Guardian** | `guardian.py` | Pré-filtro barato (`looks_strategic`, sem LLM) + checagem de contradição (`check`, com LLM). |
-| **Knowledge Base** | `knowledge.py` | RAG: ingestão e consulta de materiais de referência via ChromaDB. |
-| **Storage** | `storage.py` | Persistência em SQLite (a "fonte da verdade"). |
-| **LLMClient** | `llm/` | Interface única para o LLM, com implementações OpenAI e Gemini e um *factory* que escolhe pelo `LLM_PROVIDER`. |
-| **Config** | `config.py` | Lê variáveis de ambiente para um `Settings`. |
-| **Main** | `main.py` | Ponto de entrada: monta tudo, valida credenciais, inicia o polling. |
+| Bot Layer | `bot.py` | Handlers puros + glue do Telegram. Zero lógica de negócio. |
+| Orchestrator | `orchestrator.py` | O funil do §3: menção, guardião, participante, sync com RAG tipado por módulo. |
+| Extractor | `extractor.py` | Lote de mensagens → itens estratégicos. |
+| Reconciler | `reconciler.py` | Transições de status (valida/supera itens) — o que torna a base *viva*. |
+| Canvas Updater | `updater.py` | Itens vivos → blocos do BMC. |
+| Guardian | `guardian.py` | Pré-filtro barato + verdicto de contradição (com a voz injetada). |
+| Participant | `participant.py` | `consider` (decide-e-gera espontâneo) e `respond` (menções). |
+| Stylist | `stylist.py` | Presets de personalidade + reescrita fail-safe de respostas. |
+| MaterialService | `materials.py` | Parsers (PDF/DOCX/TXT/MD), classificação LLM, tabela de roteamento tipo→módulos. |
+| Knowledge Base | `knowledge.py` | ChromaDB: chunks com metadata de tipo, consultas filtradas. |
+| Storage | `storage.py` | SQLite (WAL) — fonte da verdade, com migrações automáticas. |
+| LLM Layer | `llm/` | Interface única (`complete_json`) + OpenAI + Gemini + factory + validação com retry. |
+| Web App | `webapp/` | FastAPI: `auth.py` (HMAC do initData), `server.py` (API read-only), `static/index.html` (grade). |
 
-### A camada de LLM (o que permite trocar OpenAI ↔ Gemini)
+### A camada de LLM
 
-Toda a lógica de negócio conversa com **uma única interface**:
-
-```python
-class LLMClient:
-    def complete_json(self, system: str, user: str) -> dict: ...
-```
-
-- `OpenAILLMClient` e `GeminiLLMClient` implementam essa interface.
-- `call_validated(client, system, user, schema)` é o **ponto único de
-  validação**: chama o LLM, valida a saída com um schema Pydantic e, se vier
-  inválida, tenta **uma vez** de novo e descarta se falhar (nunca grava lixo no
-  banco).
-- `build_llm(settings)` é o *factory*: lê `LLM_PROVIDER` e devolve o cliente
-  certo, validando só a chave do provedor escolhido.
-
-Como Extractor, Reconciler, Updater e Guardian só conhecem a interface,
-**trocar de provedor não muda uma linha da lógica de negócio** — só a variável
-de ambiente.
+Toda a lógica fala com **uma interface**: `LLMClient.complete_json(system,
+user) -> dict`. Cada saída passa por `call_validated` — valida com Pydantic,
+tenta 1 vez em falha, descarta se persistir (**nunca grava lixo**). Trocar
+OpenAI ↔ Gemini é uma variável de ambiente.
 
 ---
 
 ## 5. A base estratégica viva (modelo de dados)
 
-Tudo é persistido em **SQLite**. O princípio central: **`strategic_items` é a
-fonte da verdade; o canvas é apenas uma projeção dela.**
+**`strategic_items` é a fonte da verdade; o canvas é uma projeção.**
 
 | Tabela | Para quê |
 |---|---|
-| `projects` | Um projeto por grupo do Telegram. Guarda o `mode` (silent/moderate/active). |
-| `messages` | Buffer bruto das conversas. `processed` marca o que já virou item. `telegram_msg_id` é único (idempotência). |
-| `strategic_items` | O coração: cada decisão/hipótese/premissa/risco/tarefa/aprendizado, com `status` e `source_message_id` (origem). |
-| `canvas_blocks` | Os 9 blocos do BMC — uma *projeção* dos itens. |
-| `interventions` | Log de cada alerta do guardião (alimenta o `/why` e a auditoria). |
-| `knowledge_docs` | Metadados dos materiais de referência (os vetores ficam no ChromaDB). |
-
-### Ciclo de vida de um item estratégico
+| `projects` | Um por grupo: `mode`, `personality`, marcador de cooldown do participante. |
+| `messages` | Buffer bruto (idempotente por `telegram_msg_id`). |
+| `strategic_items` | Decisões/hipóteses/etc. com `status`, origem e linhagem (`superseded_by`). |
+| `canvas_blocks` | Os 9 blocos — projeção dos itens `active`+`validated`. |
+| `interventions` | Log de alertas do guardião (alimenta `/why`). |
+| `knowledge_docs` | Catálogo dos materiais com `material_type`. |
 
 ```
-        extraído
-           │
-           ▼
-       [ active ] ──── reconciler promove ────► [ validated ]
-           │                                          │
-           │ reconciler descarta              alguém contradiz
-           ▼                                          │
-      [ discarded ]                                   ▼
-           ▲                              guardião dispara alerta
-           │
-   substituído por item novo ──► [ superseded ]
+extraído → [active] ──reconciler──► [validated]
+              │                          │ sustenta canvas + guardião
+              ▼                          ▼
+         [discarded]              alguém contradiz → ⚠️ alerta
+              ▲
+   substituído → [superseded]
 ```
 
-- O **canvas** projeta itens `active` + `validated` (o que vale agora).
-- O **guardião** compara contra itens `validated` + `discarded` (o que já foi
-  decidido ou rejeitado) — é por isso que o Reconciler é essencial: sem ele,
-  nada chegaria a `validated` e o guardião não teria o que defender.
-- **Nada é apagado de fato** (exceto via `/forget`): itens viram `discarded` ou
-  `superseded`. É isso que permite o guardião dizer *"esse caminho já foi
-  descartado por causa da premissa X"*.
+- O **canvas** projeta `active` + `validated`; o **guardião** defende
+  `validated` + `discarded` ("esse caminho já foi descartado").
+- Nada se apaga de fato (exceto `/forget`) — a linhagem preserva o histórico.
+
+### Roteamento de materiais (o "incremental")
+
+| Tipo detectado | Alimenta | Capacidade destravada |
+|---|---|---|
+| guia de canvas | Updater, Participante | canvas segue o manual |
+| guia de validação | Guardião, Reconciler, Participante | cobra experimentos |
+| metodologia | Extractor, Guardião, Participante | análises com os conceitos |
+| framework próprio | todos | lente de tudo |
+| geral | Guardião, Participante | contexto geral |
 
 ---
 
-## 6. Comandos do bot
+## 6. Comandos e interações
 
 | Comando | Efeito |
 |---|---|
-| `/start` | Ativa o bot no grupo e mostra o aviso de monitoramento (consentimento). |
-| `/sync` | Força a atualização do canvas agora (sem esperar o `BATCH_SIZE`). |
-| `/status` | Mostra o Business Model Canvas atual. |
-| `/why` | Explica o último alerta de coerência (motivo + confiança). |
-| `/forget` | Apaga todos os dados do projeto. |
+| `/start` | Ativa no grupo + aviso de monitoramento (consentimento) |
+| `/sync` | Força a atualização do canvas agora |
+| `/status` | Canvas atual em texto (na voz configurada) |
+| `/canvas` | Botão que abre o **Mini App visual** do canvas |
+| `/upload` | (arquivo com legenda, reply a arquivo, ou texto colado) adiciona material |
+| `/materials` | Lista materiais e capacidades destravadas |
+| `/personality` | Define a voz (presets ou texto livre; `reset` limpa) |
+| `/why` | Explica o último alerta (motivo + confiança) |
+| `/forget` | Apaga tudo: SQLite + vetores |
+| **@menção / reply** | O participante responde como colega |
 
-`/status`, `/sync`, `/why` e `/forget` exigem `/start` antes — se o projeto não
-foi ativado, o bot pede para rodar `/start` primeiro (portão de consentimento).
+Comandos de consulta/gestão exigem `/start` antes.
 
 ---
 
@@ -248,87 +225,87 @@ foi ativado, o bot pede para rodar `/start` primeiro (portão de consentimento).
 
 | Decisão | Escolha | Motivo |
 |---|---|---|
-| Linguagem | Python 3.14 | Ecossistema maduro de bots e LLM. |
-| Bot framework | `python-telegram-bot` 22.x | Long-polling simples, retry/backoff embutidos. |
-| LLM | OpenAI **ou** Gemini (configurável) | Flexibilidade; saída JSON estruturada nos dois. |
-| Estado | SQLite | Zero-config, suficiente para o escopo. |
-| RAG | ChromaDB | Busca semântica local nos materiais de referência. |
-| Validação de saída do LLM | Pydantic | Garante que nada malformado entre no banco (retry-uma-vez-e-descarta). |
-| Framework estratégico | Business Model Canvas (9 blocos) | Um framework no MVP; a arquitetura permite outros. |
+| Linguagem | Python 3.14 | Ecossistema de bots e LLM |
+| Bot | `python-telegram-bot` 22.x | Long-polling, retry embutido |
+| LLM | OpenAI **ou** Gemini | `LLM_PROVIDER` — flexibilidade total |
+| Estado | SQLite em **WAL** | Zero-config + leitura concorrente pelo webapp |
+| RAG | ChromaDB com metadata | Consultas filtradas por tipo de material |
+| Web | FastAPI + página única sem framework | Leve, testável com TestClient |
+| Validação LLM | Pydantic via `call_validated` | Retry-uma-vez-e-descarta em todo lugar |
+| Mini App em grupos | **Link direto** (`t.me/bot/app?startapp=`) | Botões `web_app` não funcionam em grupos; o `chat_id` chega **assinado** no `initData` |
 
-### Resiliência e segurança
+### Segurança e resiliência
 
-- **Falha do LLM** no caminho ativo → **silêncio** (nunca posta erro no grupo).
-  No caminho passivo → as mensagens ficam pendentes e entram no próximo sync.
-- **JSON malformado** → valida com Pydantic, tenta 1 vez, descarta com log.
-  Nunca grava lixo.
-- **Idempotência** → `telegram_msg_id` único; reprocessar o mesmo update não
-  duplica nada.
-- **Controle de custo** → pré-filtro barato + sync em lote + limiar de
-  confiança. Mensagens triviais não custam chamada de API.
-- **Consentimento** → o bot só age após `/start`, e avisa que está monitorando.
+- **Mini App:** todo dado exige `initData` com HMAC válido (chave derivada do
+  token do bot), janela de 1h contra replay, servidor só-leitura. Fallback de
+  `initData` para clientes Desktop (hash/sessionStorage) e `no-store` na página.
+- **Falha de LLM em qualquer caminho de fala → silêncio** (nunca posta erro).
+- **Idempotência** por `telegram_msg_id`; migrações automáticas de schema.
+- **Custo:** pré-filtros sem LLM + lote + limiares + cooldown do participante.
+
+### Config (env)
+
+`LLM_PROVIDER` · `OPENAI_API_KEY/MODEL` · `GEMINI_API_KEY/MODEL` ·
+`BATCH_SIZE` (15) · `CONFIDENCE_THRESHOLD` (0.75) ·
+`PARTICIPATION_ENABLED/COOLDOWN/THRESHOLD` (true/10/0.75) ·
+`WEBAPP_APP_NAME/PORT` — detalhes no [SETUP.md](SETUP.md).
 
 ### Qualidade
 
-- **61 testes** automatizados, todos passando.
-- Toda a lógica de negócio é **testável sem rede** (clientes de LLM são
-  injetados como *fakes*/stubs nos testes; banco em memória).
-- Construído com TDD, em camadas pequenas e focadas (~810 linhas de código no
-  total).
+- **133 testes**, todos sem rede (LLMs fake, Chroma efêmero, SQLite em memória,
+  TestClient), construídos com TDD.
+- ~1.800 linhas em **25 módulos** pequenos e focados.
+- Cada feature passou por review por tarefa + review final de branch — o
+  processo pegou, antes do merge: um bug de cooldown com espaços de id
+  distintos, uma regressão na janela de segurança do initData e respostas com
+  JSON cru.
 
 ---
 
 ## 8. Como rodar (resumo)
 
 ```bash
-# 1. ambiente
-python3.14 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-
-# 2. configurar (escolha o provedor)
-cp .env.example .env
-#   edite: TELEGRAM_TOKEN, LLM_PROVIDER=openai|gemini, e a chave do provedor
-
-# 3. rodar
-set -a; source .env; set +a
+# 1) bot
+source .venv/bin/activate && set -a; source .env; set +a
 PYTHONPATH=src python -m concierge.main
+
+# 2) canvas visual (opcional)
+PYTHONPATH=src python -m concierge.webapp
+cloudflared tunnel --url http://localhost:8080
+# registre no @BotFather (/newapp) e defina WEBAPP_APP_NAME
 ```
 
-O guia detalhado de instalação, criação do bot no BotFather (incluindo desligar
-o "privacy mode"), e um roteiro de teste ao vivo estão em **[SETUP.md](SETUP.md)**.
+Guia completo (BotFather, privacy mode, roteiro de demo): **[SETUP.md](SETUP.md)**.
 
 ---
 
-## 9. Fora do escopo do MVP (roadmap)
+## 9. Roadmap
 
-- `/upload` (ingestão de documentos pela conversa) e `/check` (checagem sob
-  demanda) — a lógica de RAG já existe e é testada; falta só o "fio" do comando.
-- Múltiplos frameworks simultâneos (hoje: só BMC).
-- Visualização web do canvas vivo.
-- Atribuição mais precisa da mensagem-origem de cada item (`source_message_id`).
-- `/forget` também remover os vetores do ChromaDB (hoje limpa só o SQLite).
+- Verificação de *membership* do chat no Mini App (`getChatMember` por requisição).
+- `textContent` no drill-down (hardening XSS do conteúdo LLM).
+- Atribuição precisa da mensagem-origem por item (`/why` cirúrgico).
+- `source_items` populado por bloco (drill-down por bloco, não geral).
+- Aprendizado de preferência do participante ("fale menos/mais").
+- Múltiplos frameworks além do BMC.
 
 ---
 
-## 10. Mapa rápido do código
+## 10. Mapa do código
 
 ```
 src/concierge/
-├── bot.py            # handlers do Telegram + comandos
-├── orchestrator.py   # cérebro: modo híbrido (passivo + ativo)
-├── extractor.py      # mensagens → itens estratégicos
-├── reconciler.py     # transições de status dos itens
-├── updater.py        # itens → blocos do canvas
-├── guardian.py       # pré-filtro + detecção de contradição
-├── knowledge.py      # RAG (ChromaDB)
-├── storage.py        # SQLite (fonte da verdade)
-├── canvas.py         # nomes dos 9 blocos do BMC
-├── models.py         # enums + schemas Pydantic
-├── config.py         # Settings (variáveis de ambiente)
-├── main.py           # ponto de entrada
-└── llm/
-    ├── client.py         # interface LLMClient + call_validated
-    ├── openai_client.py  # implementação OpenAI
-    ├── gemini_client.py  # implementação Gemini
-    └── factory.py        # build_llm (escolhe pelo LLM_PROVIDER)
+├── bot.py            # handlers do Telegram + funil de mensagem
+├── orchestrator.py   # menção · guardião · participante · sync
+├── extractor.py      # mensagens → itens
+├── reconciler.py     # ciclo de vida dos itens
+├── updater.py        # itens → canvas
+├── guardian.py       # coerência (pré-filtro + verdicto)
+├── participant.py    # colega de conversa (consider/respond)
+├── stylist.py        # personalidade (presets + restyle)
+├── materials.py      # parsers + classificação + roteamento
+├── knowledge.py      # RAG tipado (ChromaDB)
+├── storage.py        # SQLite WAL (fonte da verdade)
+├── canvas.py · models.py · config.py · main.py
+├── llm/              # interface + OpenAI + Gemini + factory
+└── webapp/           # Mini App: auth HMAC + API + página BMC
 ```
