@@ -54,6 +54,7 @@ def test_canvas_payload(client_and_storage):
     st.upsert_block(pid, "customer_segments", "SMBs brasileiras", [1])
     i1 = st.add_item(pid, ItemType.HYPOTHESIS, "SMBs pagam", 0.9, None,
                      status=ItemStatus.VALIDATED)
+    i2 = st.add_item(pid, ItemType.TASK, "entrevistar 5 clientes", 0.7, None)  # ACTIVE
     st.add_item(pid, ItemType.DECISION, "descartada", 0.5, None,
                 status=ItemStatus.DISCARDED)
     r = client.post("/api/canvas", json={"init_data": _init(-500)})
@@ -64,8 +65,9 @@ def test_canvas_payload(client_and_storage):
     assert data["blocks"] == [
         {"block_name": "customer_segments", "content": "SMBs brasileiras", "item_ids": [1]}
     ]
-    assert [i["id"] for i in data["items"]] == [i1]
-    assert data["items"][0]["status"] == "validated"
+    assert sorted(i["id"] for i in data["items"]) == sorted([i1, i2])
+    statuses = {i["id"]: i["status"] for i in data["items"]}
+    assert statuses[i1] == "validated" and statuses[i2] == "active"
 
 
 def test_empty_canvas_returns_200(client_and_storage):

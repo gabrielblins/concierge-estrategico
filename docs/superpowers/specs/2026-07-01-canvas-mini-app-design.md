@@ -121,5 +121,5 @@ A Bot API do Telegram só permite botões `web_app` em **chats privados** — in
 
 - O `/canvas` responde com um **botão de URL** para o link direto do Mini App: `https://t.me/<bot_username>/<WEBAPP_APP_NAME>?startapp=<chat_id>`.
 - Isso exige registrar o Mini App no BotFather (`/newapp`, escolhendo o *short name* e apontando para a URL pública) — passo documentado no SETUP.
-- O `chat_id` passa a chegar **assinado** dentro do `initData` (`start_param`), então o servidor extrai o chat do payload validado por HMAC — elimina o risco de adulteração do §4 (que era item de roadmap). O corpo do `POST /api/canvas` fica só `{init_data}`.
+- O `chat_id` passa a chegar **assinado** dentro do `initData` (`start_param`), então o servidor extrai o chat do payload validado por HMAC — **mitiga** o risco de adulteração do §4: garante que o valor não foi alterado em trânsito e que o app foi aberto por um usuário autenticado do Telegram. Não garante *membership* no chat (qualquer usuário pode montar o link com outro `startapp`); a verificação de membro via `getChatMember` segue como item de roadmap. O corpo do `POST /api/canvas` fica só `{init_data}`.
 - Config: `WEBAPP_APP_NAME` (short name do BotFather) e `WEBAPP_PORT`; a URL pública é usada apenas no registro do BotFather.
