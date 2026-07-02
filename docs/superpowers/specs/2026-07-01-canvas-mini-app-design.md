@@ -112,3 +112,14 @@ cloudflared tunnel --url http://localhost:8080   # copia a URL para WEBAPP_URL e
 - Verificação de membership do chat por requisição (roadmap, ver §4).
 - Histórico/versões do canvas na UI.
 - Deploy gerenciado (o design só exige uma URL HTTPS).
+
+---
+
+## Adendo (2026-07-02): lançamento em grupos via link direto
+
+A Bot API do Telegram só permite botões `web_app` em **chats privados** — inviável para o produto, que vive em grupos. Correção adotada:
+
+- O `/canvas` responde com um **botão de URL** para o link direto do Mini App: `https://t.me/<bot_username>/<WEBAPP_APP_NAME>?startapp=<chat_id>`.
+- Isso exige registrar o Mini App no BotFather (`/newapp`, escolhendo o *short name* e apontando para a URL pública) — passo documentado no SETUP.
+- O `chat_id` passa a chegar **assinado** dentro do `initData` (`start_param`), então o servidor extrai o chat do payload validado por HMAC — elimina o risco de adulteração do §4 (que era item de roadmap). O corpo do `POST /api/canvas` fica só `{init_data}`.
+- Config: `WEBAPP_APP_NAME` (short name do BotFather) e `WEBAPP_PORT`; a URL pública é usada apenas no registro do BotFather.
