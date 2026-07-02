@@ -11,6 +11,7 @@ from concierge.reconciler import Reconciler
 from concierge.llm.factory import build_llm
 from concierge.bot import build_application
 from concierge.materials import MaterialService
+from concierge.stylist import Stylist
 
 
 def _check_credentials(settings):
@@ -53,7 +54,8 @@ def main():
         reconciler=Reconciler(llm),
     )
     material_service = MaterialService(llm, knowledge, storage)
-    app = build_application(orchestrator, settings.telegram_token, material_service)
+    stylist = Stylist(llm)
+    app = build_application(orchestrator, settings.telegram_token, material_service, stylist)
     app.run_polling()
 
 

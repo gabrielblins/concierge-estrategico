@@ -4,6 +4,7 @@ from telegram.ext import (
 )
 from concierge.materials import extract_text, MaterialError, CAPABILITIES
 from concierge.models import MaterialType
+from concierge.stylist import PRESETS
 
 TYPE_LABELS = {
     MaterialType.CANVAS_GUIDE: "guia de canvas",
@@ -120,26 +121,83 @@ def handle_materials(orchestrator, chat_id):
     return "Materiais de referência:\n" + "\n".join(lines)
 
 
-def build_application(orchestrator, token, material_service=None):
+PERSONALITY_HELP = (
+    "Estilo atual: {current}\n\n"
+    "Presets: " + ", ".join(sorted(PRESETS)) + "\n"
+    "Use /personality <preset>, /personality <descrição livre> "
+    "ou /personality reset para limpar."
+)
+
+MAX_PERSONALITY = 300
+
+
+def handle_personality(orchestrator, stylist, chat_id, args):
+    pid = orchestrator.storage.get_project(chat_id)
+    if pid is None:
+        return NOT_STARTED
+    text = (args or "").strip()
+    if not text:
+        current = orchestrator.storage.get_personality(pid) or "nenhuma definida"
+        return PERSONALITY_HELP.format(current=current)
+    if text.lower() == "reset":
+        orchestrator.storage.set_personality(pid, "")
+        return "🎭 Personalidade removida. Volto ao tom neutro."
+    truncated = False
+    if text.lower() in PRESETS:
+        instruction = PRESETS[text.lower()]
+        label = text.lower()
+    else:
+        instruction = text[:MAX_PERSONALITY]
+        truncated = len(text) > MAX_PERSONALITY
+        label = "personalizada"
+    orchestrator.storage.set_personality(pid, instruction)
+    reply = f"🎭 Personalidade definida ({label})! A partir de agora falo assim."
+    if stylist is not None:
+        reply = stylist.restyle(reply, instruction)
+    if truncated:
+        reply += "\n(instrução truncada em 300 caracteres)"
+    return reply
+
+
+def _styled(orchestrator, stylist, chat_id, text):
+    if stylist is None:
+        return text
+    pid = orchestrator.storage.get_project(chat_id)
+    if pid is None:
+        return text
+    personality = orchestrator.storage.get_personality(pid)
+    if not personality:
+        return text
+    return stylist.restyle(text, personality)
+
+
+def build_application(orchestrator, token, material_service=None, stylist=None):
     app = Application.builder().token(token).build()
 
     async def start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         chat = update.effective_chat
-        await update.message.reply_text(handle_start(orchestrator, chat.id, chat.title or str(chat.id)))
+        reply = handle_start(orchestrator, chat.id, chat.title or str(chat.id))
+        await update.message.reply_text(_styled(orchestrator, stylist, chat.id, reply))
 
     async def status(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+        chat_id = update.effective_chat.id
+        reply = handle_status(orchestrator, chat_id)
         await update.message.reply_text(
-            handle_status(orchestrator, update.effective_chat.id), parse_mode="Markdown"
+            _styled(orchestrator, stylist, chat_id, reply), parse_mode="Markdown"
         )
 
     async def why(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-        await update.message.reply_text(handle_why(orchestrator, update.effective_chat.id))
+        chat_id = update.effective_chat.id
+        reply = handle_why(orchestrator, chat_id)
+        await update.message.reply_text(_styled(orchestrator, stylist, chat_id, reply))
 
     async def forget(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(handle_forget(orchestrator, update.effective_chat.id))
 
     async def sync(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-        await update.message.reply_text(handle_sync(orchestrator, update.effective_chat.id))
+        chat_id = update.effective_chat.id
+        reply = handle_sync(orchestrator, chat_id)
+        await update.message.reply_text(_styled(orchestrator, stylist, chat_id, reply))
 
     async def on_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         chat = update.effective_chat
@@ -201,6 +259,12 @@ def build_application(orchestrator, token, material_service=None):
             handle_materials(orchestrator, update.effective_chat.id)
         )
 
+    async def personality(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+        args = " ".join(ctx.args) if ctx.args else ""
+        await update.message.reply_text(
+            handle_personality(orchestrator, stylist, update.effective_chat.id, args)
+        )
+
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("status", status))
     app.add_handler(CommandHandler("why", why))
@@ -208,6 +272,7 @@ def build_application(orchestrator, token, material_service=None):
     app.add_handler(CommandHandler("sync", sync))
     app.add_handler(CommandHandler("upload", upload))
     app.add_handler(CommandHandler("materials", materials))
+    app.add_handler(CommandHandler("personality", personality))
     app.add_handler(MessageHandler(
         filters.Document.ALL & filters.CaptionRegex(r"^/upload"), upload_document
     ))
