@@ -41,3 +41,28 @@ def test_respond_returns_text_and_includes_mention(fake_llm):
 def test_respond_failure_silent(fake_llm):
     p = Participant(fake_llm(responses=[{"nope": 1}, {"nope": 1}]))
     assert p.respond(WINDOW, [], "", "oi bot") is None
+
+
+def test_respond_unwraps_double_encoded_json(fake_llm):
+    llm = fake_llm(responses=[{"text": '{"text":"Na minha visão, testem com 5 clientes."}'}])
+    p = Participant(llm)
+    out = p.respond(WINDOW, [], "", "oi bot")
+    assert out == "Na minha visão, testem com 5 clientes."
+
+
+def test_consider_unwraps_double_encoded_text(fake_llm):
+    llm = fake_llm(responses=[{
+        "should_contribute": True, "relevance": 0.9, "kind": "question",
+        "text": '{"text":"Qual evidência sustenta isso?"}',
+    }])
+    p = Participant(llm)
+    c = p.consider(WINDOW, [], "")
+    assert c.text == "Qual evidência sustenta isso?"
+
+
+def test_unwrap_leaves_normal_and_braced_prose_alone(fake_llm):
+    from concierge.participant import _unwrap_text
+    assert _unwrap_text("texto normal") == "texto normal"
+    assert _unwrap_text('{"other": "shape"}') == '{"other": "shape"}'
+    assert _unwrap_text("{isso não é json") == "{isso não é json"
+    assert _unwrap_text("") == ""

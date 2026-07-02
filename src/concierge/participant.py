@@ -1,5 +1,20 @@
+import json
+
 from concierge.llm.client import call_validated
 from concierge.models import Contribution, StyledText
+
+
+def _unwrap_text(text):
+    """Defensively unwrap a double-encoded {"text": "..."} payload."""
+    candidate = (text or "").strip()
+    if candidate.startswith("{"):
+        try:
+            inner = json.loads(candidate)
+        except (ValueError, TypeError):
+            return text
+        if isinstance(inner, dict) and isinstance(inner.get("text"), str):
+            return inner["text"]
+    return text
 
 CONSIDER_SYSTEM = (
     "You are a thoughtful member of a startup team's group chat. Given the "
@@ -42,14 +57,17 @@ class Participant:
         return base + (f" Write in this voice: {style}" if style else "")
 
     def consider(self, window, items, materials, style=""):
-        return call_validated(
+        result = call_validated(
             self.llm, self._system(CONSIDER_SYSTEM, style),
             _context(window, items, materials), Contribution,
         )
+        if result is not None:
+            result.text = _unwrap_text(result.text)
+        return result
 
     def respond(self, window, items, materials, mention_text, style=""):
         user = _context(window, items, materials) + f"\n\nADDRESSED TO YOU:\n{mention_text}"
         result = call_validated(
             self.llm, self._system(RESPOND_SYSTEM, style), user, StyledText
         )
-        return result.text if result is not None else None
+        return _unwrap_text(result.text) if result is not None else None
