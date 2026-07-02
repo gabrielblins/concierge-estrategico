@@ -177,6 +177,7 @@ stopping and restarting keeps the project's strategic base.
 | `/forget` | Erase all stored data for this group |
 | `/upload` | (arquivo com legenda, reply a arquivo, ou texto colado) adiciona material de referência |
 | `/materials` | lista os materiais ingeridos e as capacidades destravadas |
+| `/personality` | define a voz do bot (presets: mentor, coach, zen, formal — ou descrição livre; `reset` limpa) |
 
 `/status`, `/sync`, `/why`, and `/forget` require `/start` first — if the
 project isn't active, they reply asking you to `/start`.

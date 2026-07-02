@@ -132,3 +132,67 @@ def test_handle_forget_drops_vectors(fake_llm):
     o.knowledge = _FakeKnowledge()
     bot.handle_forget(o, 100)
     assert o.knowledge.deleted == [pid]
+
+
+class _FakeStylist:
+    def __init__(self):
+        self.calls = []
+
+    def restyle(self, text, personality):
+        self.calls.append((text, personality))
+        return f"[styled:{personality[:10]}] {text}"
+
+
+def test_handle_personality_lists_presets_when_no_args(fake_llm):
+    o = _orch(fake_llm)
+    o.storage.get_or_create_project(100, "Acme")
+    reply = bot.handle_personality(o, None, 100, "")
+    assert "mentor" in reply and "coach" in reply and "zen" in reply and "formal" in reply
+    assert "nenhuma" in reply.lower()
+
+
+def test_handle_personality_requires_start(fake_llm):
+    o = _orch(fake_llm)
+    assert bot.handle_personality(o, None, 777, "mentor") == bot.NOT_STARTED
+
+
+def test_handle_personality_applies_preset_and_persists(fake_llm):
+    from concierge.stylist import PRESETS
+    o = _orch(fake_llm)
+    pid = o.storage.get_or_create_project(100, "Acme")
+    st = _FakeStylist()
+    reply = bot.handle_personality(o, st, 100, "Mentor")
+    assert o.storage.get_personality(pid) == PRESETS["mentor"]
+    assert reply.startswith("[styled:")  # confirmation in the new voice
+
+
+def test_handle_personality_free_text_and_truncation(fake_llm):
+    o = _orch(fake_llm)
+    pid = o.storage.get_or_create_project(100, "Acme")
+    long_text = "fale como um pirata " * 30  # > 300 chars
+    reply = bot.handle_personality(o, None, 100, long_text)
+    assert len(o.storage.get_personality(pid)) == 300
+    assert "truncada" in reply
+
+
+def test_handle_personality_reset(fake_llm):
+    o = _orch(fake_llm)
+    pid = o.storage.get_or_create_project(100, "Acme")
+    o.storage.set_personality(pid, "algo")
+    reply = bot.handle_personality(o, None, 100, "reset")
+    assert o.storage.get_personality(pid) == ""
+    assert "removida" in reply.lower() or "limpa" in reply.lower()
+
+
+def test_styled_helper_passthrough_and_restyle(fake_llm):
+    o = _orch(fake_llm)
+    pid = o.storage.get_or_create_project(100, "Acme")
+    # no stylist -> passthrough
+    assert bot._styled(o, None, 100, "oi") == "oi"
+    st = _FakeStylist()
+    # no personality set -> passthrough, stylist not called
+    assert bot._styled(o, st, 100, "oi") == "oi"
+    assert st.calls == []
+    o.storage.set_personality(pid, "voz de mentor")
+    out = bot._styled(o, st, 100, "oi")
+    assert out.startswith("[styled:") and st.calls[0] == ("oi", "voz de mentor")

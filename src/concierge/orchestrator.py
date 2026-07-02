@@ -84,7 +84,8 @@ class Orchestrator:
             context = self.knowledge.query(
                 project_id, text, material_types=types_for_module("guardian")
             )
-        verdict = self.guardian.check(text, known, context)
+        style = self.storage.get_personality(project_id)
+        verdict = self.guardian.check(text, known, context, style=style)
         if verdict is None:
             return None
         if verdict.contradicts and verdict.confidence >= self.settings.confidence_threshold:

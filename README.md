@@ -27,6 +27,7 @@ and alerts the team when discussions contradict validated strategy.
 - `/forget` — delete all project data
 - `/upload` — (arquivo com legenda, reply a arquivo, ou texto colado) adiciona material de referência
 - `/materials` — lista os materiais ingeridos e as capacidades destravadas
+- `/personality` — define a voz do bot (presets: mentor, coach, zen, formal — ou descrição livre; `reset` limpa)
 
 ## Privacy
 

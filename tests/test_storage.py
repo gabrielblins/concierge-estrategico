@@ -81,3 +81,12 @@ def test_knowledge_doc_roundtrip_with_type(storage):
     assert docs[0]["filename"] == "manual-bmc.pdf"
     assert docs[0]["material_type"] == "canvas_guide"
     assert docs[0]["chunk_count"] == 12
+
+
+def test_personality_roundtrip_and_default(storage):
+    pid = storage.get_or_create_project(100, "Acme")
+    assert storage.get_personality(pid) == ""
+    storage.set_personality(pid, "fale como um mentor direto")
+    assert storage.get_personality(pid) == "fale como um mentor direto"
+    storage.set_personality(pid, "")
+    assert storage.get_personality(pid) == ""

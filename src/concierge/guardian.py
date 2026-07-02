@@ -24,11 +24,14 @@ class Guardian:
         low = text.lower()
         return any(sig in low for sig in SIGNALS)
 
-    def check(self, text, known_items, method_context=""):
+    def check(self, text, known_items, method_context="", style=""):
         items_txt = "\n".join(f"[{i['type']}] {i['content']}" for i in known_items)
         user = (
             f"NEW MESSAGE:\n{text}\n\n"
             f"KNOWN ITEMS:\n{items_txt}\n\n"
             f"METHOD CONTEXT:\n{method_context}"
         )
-        return call_validated(self.llm, SYSTEM, user, CoherenceVerdict)
+        system = SYSTEM
+        if style:
+            system += f" Write the 'reason' field in this voice: {style}"
+        return call_validated(self.llm, system, user, CoherenceVerdict)
