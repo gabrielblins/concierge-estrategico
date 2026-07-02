@@ -74,3 +74,17 @@ class ClassificationResult(BaseModel):
 
 class StyledText(BaseModel):
     text: str
+
+
+class ContributionKind(str, Enum):
+    CONNECTION = "connection"
+    KNOWLEDGE = "knowledge"
+    QUESTION = "question"
+    SYNTHESIS = "synthesis"
+
+
+class Contribution(BaseModel):
+    should_contribute: bool
+    relevance: float
+    kind: ContributionKind | None = None
+    text: str = ""

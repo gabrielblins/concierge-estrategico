@@ -48,3 +48,17 @@ def test_classification_result_parses_and_rejects():
     assert ok.material_type == MaterialType.VALIDATION_GUIDE
     with pytest.raises(ValidationError):
         ClassificationResult.model_validate({"material_type": "cookbook"})
+
+
+def test_contribution_schema_and_kinds():
+    from concierge.models import Contribution, ContributionKind
+    assert {k.value for k in ContributionKind} == {
+        "connection", "knowledge", "question", "synthesis"
+    }
+    c = Contribution.model_validate({
+        "should_contribute": True, "relevance": 0.9,
+        "kind": "question", "text": "Qual evidência sustenta isso?",
+    })
+    assert c.kind == ContributionKind.QUESTION
+    quiet = Contribution.model_validate({"should_contribute": False, "relevance": 0.1})
+    assert quiet.kind is None and quiet.text == ""

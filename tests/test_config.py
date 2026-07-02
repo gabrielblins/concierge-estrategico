@@ -33,3 +33,22 @@ def test_settings_llm_provider_defaults_to_openai(monkeypatch):
     monkeypatch.delenv("LLM_PROVIDER", raising=False)
     s = Settings.from_env()
     assert s.llm_provider == "openai"
+
+
+def test_settings_participation_fields(monkeypatch):
+    monkeypatch.setenv("TELEGRAM_TOKEN", "tok")
+    monkeypatch.setenv("OPENAI_API_KEY", "okey")
+    monkeypatch.delenv("PARTICIPATION_ENABLED", raising=False)
+    monkeypatch.delenv("PARTICIPATION_COOLDOWN", raising=False)
+    monkeypatch.delenv("PARTICIPATION_THRESHOLD", raising=False)
+    s = Settings.from_env()
+    assert s.participation_enabled is True
+    assert s.participation_cooldown == 10
+    assert s.participation_threshold == 0.75
+    monkeypatch.setenv("PARTICIPATION_ENABLED", "False")
+    monkeypatch.setenv("PARTICIPATION_COOLDOWN", "3")
+    monkeypatch.setenv("PARTICIPATION_THRESHOLD", "0.5")
+    s2 = Settings.from_env()
+    assert s2.participation_enabled is False
+    assert s2.participation_cooldown == 3
+    assert s2.participation_threshold == 0.5
