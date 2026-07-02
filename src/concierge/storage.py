@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS projects (
     framework_type TEXT NOT NULL DEFAULT 'bmc',
     mode TEXT NOT NULL DEFAULT 'moderate',
     personality TEXT NOT NULL DEFAULT '',
+    last_participation_msg_id INTEGER,
     created_at REAL NOT NULL DEFAULT (strftime('%s','now'))
 );
 CREATE TABLE IF NOT EXISTS messages (
@@ -79,6 +80,12 @@ class Storage:
         try:
             self.conn.execute(
                 "ALTER TABLE projects ADD COLUMN personality TEXT NOT NULL DEFAULT ''"
+            )
+        except sqlite3.OperationalError:
+            pass  # column already exists
+        try:
+            self.conn.execute(
+                "ALTER TABLE projects ADD COLUMN last_participation_msg_id INTEGER"
             )
         except sqlite3.OperationalError:
             pass  # column already exists
@@ -257,3 +264,40 @@ class Storage:
         )
         row = cur.fetchone()
         return row["personality"] if row else ""
+
+    def recent_messages(self, project_id: int, limit: int = 15) -> list[dict]:
+        cur = self.conn.execute(
+            "SELECT id, author, text FROM ("
+            "  SELECT id, author, text FROM messages"
+            "  WHERE project_id = ? ORDER BY id DESC LIMIT ?"
+            ") ORDER BY id ASC",
+            (project_id, limit),
+        )
+        return [dict(r) for r in cur.fetchall()]
+
+    def set_last_participation(self, project_id: int, message_id: int) -> None:
+        self.conn.execute(
+            "UPDATE projects SET last_participation_msg_id = ? WHERE id = ?",
+            (message_id, project_id),
+        )
+        self.conn.commit()
+
+    def get_last_participation(self, project_id: int):
+        cur = self.conn.execute(
+            "SELECT last_participation_msg_id FROM projects WHERE id = ?",
+            (project_id,),
+        )
+        row = cur.fetchone()
+        return row["last_participation_msg_id"] if row else None
+
+    def messages_since(self, project_id: int, message_id) -> int:
+        if message_id is None:
+            cur = self.conn.execute(
+                "SELECT COUNT(*) n FROM messages WHERE project_id = ?", (project_id,)
+            )
+        else:
+            cur = self.conn.execute(
+                "SELECT COUNT(*) n FROM messages WHERE project_id = ? AND id > ?",
+                (project_id, message_id),
+            )
+        return cur.fetchone()["n"]
