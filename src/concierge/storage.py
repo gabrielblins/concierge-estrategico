@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS projects (
     name TEXT NOT NULL,
     framework_type TEXT NOT NULL DEFAULT 'bmc',
     mode TEXT NOT NULL DEFAULT 'moderate',
+    personality TEXT NOT NULL DEFAULT '',
     created_at REAL NOT NULL DEFAULT (strftime('%s','now'))
 );
 CREATE TABLE IF NOT EXISTS messages (
@@ -72,6 +73,12 @@ class Storage:
         try:
             self.conn.execute(
                 "ALTER TABLE knowledge_docs ADD COLUMN material_type TEXT NOT NULL DEFAULT 'generic'"
+            )
+        except sqlite3.OperationalError:
+            pass  # column already exists
+        try:
+            self.conn.execute(
+                "ALTER TABLE projects ADD COLUMN personality TEXT NOT NULL DEFAULT ''"
             )
         except sqlite3.OperationalError:
             pass  # column already exists
@@ -237,3 +244,16 @@ class Storage:
             (project_id,),
         )
         return [dict(r) for r in cur.fetchall()]
+
+    def set_personality(self, project_id: int, text: str) -> None:
+        self.conn.execute(
+            "UPDATE projects SET personality = ? WHERE id = ?", (text, project_id)
+        )
+        self.conn.commit()
+
+    def get_personality(self, project_id: int) -> str:
+        cur = self.conn.execute(
+            "SELECT personality FROM projects WHERE id = ?", (project_id,)
+        )
+        row = cur.fetchone()
+        return row["personality"] if row else ""
