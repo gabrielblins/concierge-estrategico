@@ -14,6 +14,9 @@ class Settings:
     openai_model: str = "gpt-4o-mini"
     gemini_api_key: str = ""
     gemini_model: str = "gemini-3.5-flash"
+    participation_enabled: bool = True
+    participation_cooldown: int = 10
+    participation_threshold: float = 0.75
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -28,4 +31,11 @@ class Settings:
             openai_model=os.environ.get("OPENAI_MODEL", "gpt-4o-mini"),
             gemini_api_key=os.environ.get("GEMINI_API_KEY", ""),
             gemini_model=os.environ.get("GEMINI_MODEL", "gemini-3.5-flash"),
+            participation_enabled=(
+                os.environ.get("PARTICIPATION_ENABLED", "true").lower() != "false"
+            ),
+            participation_cooldown=int(os.environ.get("PARTICIPATION_COOLDOWN", "10")),
+            participation_threshold=float(
+                os.environ.get("PARTICIPATION_THRESHOLD", "0.75")
+            ),
         )

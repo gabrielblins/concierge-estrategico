@@ -87,3 +87,10 @@ def test_material_service_end_to_end(fake_llm):
     docs = st.list_knowledge_docs(pid)
     assert docs[0]["material_type"] == "canvas_guide"
     assert "blocos" in kb.query(pid, "blocos", material_types=["canvas_guide"])
+
+
+def test_participant_routed_to_all_types():
+    assert set(types_for_module("participant")) == {
+        "canvas_guide", "validation_guide", "methodology",
+        "custom_framework", "generic",
+    }

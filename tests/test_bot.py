@@ -196,3 +196,12 @@ def test_styled_helper_passthrough_and_restyle(fake_llm):
     o.storage.set_personality(pid, "voz de mentor")
     out = bot._styled(o, st, 100, "oi")
     assert out.startswith("[styled:") and st.calls[0] == ("oi", "voz de mentor")
+
+
+def test_is_mention_detection():
+    assert bot._is_mention("valeu @meu_bot, o que acha?", "meu_bot", False) is True
+    assert bot._is_mention("valeu @Meu_Bot!", "meu_bot", False) is True
+    assert bot._is_mention("qualquer texto", "meu_bot", True) is True
+    assert bot._is_mention("sem mencao aqui", "meu_bot", False) is False
+    assert bot._is_mention("@outro_bot oi", "meu_bot", False) is False
+    assert bot._is_mention("@meu_bot oi", None, False) is False

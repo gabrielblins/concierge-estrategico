@@ -90,3 +90,25 @@ def test_personality_roundtrip_and_default(storage):
     assert storage.get_personality(pid) == "fale como um mentor direto"
     storage.set_personality(pid, "")
     assert storage.get_personality(pid) == ""
+
+
+def test_recent_messages_window_oldest_to_newest(storage):
+    pid = storage.get_or_create_project(100, "Acme")
+    for i in range(1, 6):
+        storage.add_message(pid, i, "ana", f"msg {i}", float(i))
+    window = storage.recent_messages(pid, limit=3)
+    assert [m["text"] for m in window] == ["msg 3", "msg 4", "msg 5"]
+    assert set(window[0]) == {"id", "author", "text"}
+
+
+def test_participation_cooldown_roundtrip(storage):
+    pid = storage.get_or_create_project(100, "Acme")
+    assert storage.get_last_participation(pid) is None
+    m1 = storage.add_message(pid, 1, "ana", "a", 1.0)
+    m2 = storage.add_message(pid, 2, "ana", "b", 2.0)
+    m3 = storage.add_message(pid, 3, "ana", "c", 3.0)
+    assert storage.messages_since(pid, None) == 3
+    storage.set_last_participation(pid, m1)
+    assert storage.get_last_participation(pid) == m1
+    assert storage.messages_since(pid, m1) == 2
+    assert storage.messages_since(pid, m3) == 0

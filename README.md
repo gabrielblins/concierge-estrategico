@@ -29,6 +29,15 @@ and alerts the team when discussions contradict validated strategy.
 - `/materials` — lista os materiais ingeridos e as capacidades destravadas
 - `/personality` — define a voz do bot (presets: mentor, coach, zen, formal — ou descrição livre; `reset` limpa)
 
+## Participation
+
+Mention the bot (`@your_bot`) or reply to one of its messages and it answers
+as a team member, drawing on the conversation, the strategic base, and the
+uploaded materials. It also makes rare spontaneous contributions (connections,
+material knowledge, questions, synthesis) gated by relevance and a cooldown —
+tune with `PARTICIPATION_ENABLED`, `PARTICIPATION_COOLDOWN`,
+`PARTICIPATION_THRESHOLD`.
+
 ## Privacy
 
 The bot only acts in groups where it was added and activated via `/start`,

@@ -110,6 +110,9 @@ CONFIDENCE_THRESHOLD=0.75
 | `OPENAI_MODEL` | `gpt-4o-mini` | OpenAI model id (when provider is openai) | — |
 | `BATCH_SIZE` | 15 | Messages buffered before an automatic canvas sync | Set to **3** so the canvas updates after just a few messages instead of waiting for 15 |
 | `CONFIDENCE_THRESHOLD` | 0.75 | Minimum confidence for the guardian to post an alert | Lower to ~0.6 if you want the guardian to speak up more eagerly during a demo |
+| `PARTICIPATION_ENABLED` | `true` | Participação espontânea do bot na conversa | `false` desliga |
+| `PARTICIPATION_COOLDOWN` | 10 | Mensagens mínimas entre contribuições espontâneas | Baixe para 3 na demo |
+| `PARTICIPATION_THRESHOLD` | 0.75 | Relevância mínima para o bot contribuir | Baixe para ~0.6 se quiser mais participação |
 
 Export the variables into your shell before running:
 
