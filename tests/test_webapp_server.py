@@ -89,3 +89,5 @@ def test_index_served_with_full_grid(client_and_storage):
         assert block in r.text
     assert "telegram-web-app.js" in r.text
     assert "themeParams" in r.text
+    assert r.headers["cache-control"] == "no-store"
+    assert "tgWebAppData" in r.text  # fallback p/ clientes sem initData
