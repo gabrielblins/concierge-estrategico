@@ -148,8 +148,27 @@
     grid.hidden = false;
   }
 
+  function rawInitData() {
+    // Caminho normal: o SDK populou initData.
+    if (tg && tg.initData) return tg.initData;
+    // Fallback 1: dados brutos no hash de lançamento (#tgWebAppData=...).
+    const m = (location.hash || "").match(/tgWebAppData=([^&]+)/);
+    if (m) return decodeURIComponent(m[1]);
+    // Fallback 2: o SDK guarda os launch params no sessionStorage do webview
+    // (alguns clientes Desktop não expõem initData em apps de link direto).
+    try {
+      const s = sessionStorage.getItem("__telegram__initParams");
+      if (s) {
+        const p = JSON.parse(s);
+        if (p && p.tgWebAppData) return p.tgWebAppData;
+      }
+    } catch (e) { /* sem sessionStorage: segue */ }
+    return "";
+  }
+
   async function load() {
-    if (!tg || !tg.initData) {
+    const initData = rawInitData();
+    if (!initData) {
       state.textContent = "Abra pelo botão do bot no Telegram.";
       return;
     }
@@ -157,7 +176,7 @@
       const r = await fetch("/api/canvas", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({init_data: tg.initData}),
+        body: JSON.stringify({init_data: initData}),
       });
       if (r.status === 401) { state.textContent = "Abra pelo botão do bot no Telegram."; return; }
       if (r.status === 404) { state.textContent = "Projeto não encontrado — rode /start no grupo."; return; }

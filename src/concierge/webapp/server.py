@@ -46,7 +46,11 @@ def create_app(settings, storage=None):
 
     @app.get("/")
     def index():
-        return FileResponse(STATIC_DIR / "index.html")
+        # no-store: o webview do Telegram cacheia agressivamente; a página
+        # precisa refletir atualizações do bot sem exigir limpar cache.
+        return FileResponse(
+            STATIC_DIR / "index.html", headers={"Cache-Control": "no-store"}
+        )
 
     @app.post("/api/canvas")
     def canvas(body: CanvasRequest):
