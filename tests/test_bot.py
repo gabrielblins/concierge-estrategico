@@ -205,3 +205,24 @@ def test_is_mention_detection():
     assert bot._is_mention("sem mencao aqui", "meu_bot", False) is False
     assert bot._is_mention("@outro_bot oi", "meu_bot", False) is False
     assert bot._is_mention("@meu_bot oi", None, False) is False
+
+
+def test_handle_canvas_builds_direct_link(fake_llm):
+    o = _orch(fake_llm)
+    o.storage.get_or_create_project(100, "Acme")
+    o.settings.webapp_app_name = "meucanvas"
+    text, url = bot.handle_canvas(o, 100, "meu_bot")
+    assert url == "https://t.me/meu_bot/meucanvas?startapp=100"
+    assert "canvas" in text.lower()
+
+
+def test_handle_canvas_gates(fake_llm):
+    o = _orch(fake_llm)
+    # sem /start
+    text, url = bot.handle_canvas(o, 777, "meu_bot")
+    assert text == bot.NOT_STARTED and url is None
+    # sem app name configurado
+    o.storage.get_or_create_project(100, "Acme")
+    o.settings.webapp_app_name = ""
+    text, url = bot.handle_canvas(o, 100, "meu_bot")
+    assert url is None and "WEBAPP_APP_NAME" in text

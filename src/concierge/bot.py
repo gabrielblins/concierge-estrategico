@@ -1,4 +1,4 @@
-from telegram import Update
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application, CommandHandler, MessageHandler, filters, ContextTypes,
 )
@@ -159,6 +159,21 @@ def handle_personality(orchestrator, stylist, chat_id, args):
     return reply
 
 
+def handle_canvas(orchestrator, chat_id, bot_username):
+    pid = orchestrator.storage.get_project(chat_id)
+    if pid is None:
+        return NOT_STARTED, None
+    app_name = orchestrator.settings.webapp_app_name
+    if not app_name:
+        return (
+            "O Mini App do canvas não está configurado. Registre o app no "
+            "BotFather (/newapp) e defina WEBAPP_APP_NAME no .env.",
+            None,
+        )
+    url = f"https://t.me/{bot_username}/{app_name}?startapp={chat_id}"
+    return "📋 Abra o canvas do projeto:", url
+
+
 def _is_mention(text, bot_username, reply_to_is_bot):
     if reply_to_is_bot:
         return True
@@ -287,6 +302,18 @@ def build_application(orchestrator, token, material_service=None, stylist=None):
             handle_personality(orchestrator, stylist, update.effective_chat.id, args)
         )
 
+    async def canvas(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+        text, url = handle_canvas(
+            orchestrator, update.effective_chat.id, ctx.bot.username
+        )
+        if url:
+            keyboard = InlineKeyboardMarkup(
+                [[InlineKeyboardButton(text="📋 Abrir Canvas", url=url)]]
+            )
+            await update.message.reply_text(text, reply_markup=keyboard)
+        else:
+            await update.message.reply_text(text)
+
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("status", status))
     app.add_handler(CommandHandler("why", why))
@@ -295,6 +322,7 @@ def build_application(orchestrator, token, material_service=None, stylist=None):
     app.add_handler(CommandHandler("upload", upload))
     app.add_handler(CommandHandler("materials", materials))
     app.add_handler(CommandHandler("personality", personality))
+    app.add_handler(CommandHandler("canvas", canvas))
     app.add_handler(MessageHandler(
         filters.Document.ALL & filters.CaptionRegex(r"^/upload"), upload_document
     ))

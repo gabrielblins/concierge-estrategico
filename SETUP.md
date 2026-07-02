@@ -181,9 +181,20 @@ stopping and restarting keeps the project's strategic base.
 | `/upload` | (arquivo com legenda, reply a arquivo, ou texto colado) adiciona material de referência |
 | `/materials` | lista os materiais ingeridos e as capacidades destravadas |
 | `/personality` | define a voz do bot (presets: mentor, coach, zen, formal — ou descrição livre; `reset` limpa) |
+| /canvas | botão que abre o Mini App com o canvas visual |
 
 `/status`, `/sync`, `/why`, and `/forget` require `/start` first — if the
 project isn't active, they reply asking you to `/start`.
+
+## 7.1 Mini App do canvas (opcional)
+
+1. Rode o servidor: `PYTHONPATH=src python -m concierge.webapp` (porta `WEBAPP_PORT`, default 8080).
+2. Exponha via túnel: `cloudflared tunnel --url http://localhost:8080` — copie a URL HTTPS.
+3. No @BotFather: `/newapp` → escolha o bot → defina título/short name → cole a URL do túnel.
+   (Se a URL do túnel mudar, atualize em /myapps → Edit Web App URL.)
+4. `WEBAPP_APP_NAME=<short name>` no `.env` e reinicie o bot.
+5. No grupo: `/canvas` → botão "📋 Abrir Canvas" abre a grade do BMC dentro do Telegram;
+   toque num bloco para ver os itens estratégicos.
 
 ---
 
