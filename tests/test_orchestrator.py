@@ -237,3 +237,108 @@ def test_check_coherence_passes_personality_as_style(fake_llm):
     o.storage.set_personality(pid, "fale como um mentor direto")
     o.check_coherence(pid, 1, "vamos priorizar enterprise")
     assert "fale como um mentor direto" in guardian_llm.calls[0][0]
+
+
+class _FakeParticipant:
+    def __init__(self, contribution=None, reply=None):
+        self.contribution = contribution
+        self.reply = reply
+        self.consider_calls = []
+        self.respond_calls = []
+
+    def consider(self, window, items, materials, style=""):
+        self.consider_calls.append((window, items, materials, style))
+        return self.contribution
+
+    def respond(self, window, items, materials, mention_text, style=""):
+        self.respond_calls.append((window, items, materials, mention_text, style))
+        return self.reply
+
+
+def _orch_with_participant(fake_llm, participant, **settings_kw):
+    conn = sqlite3.connect(":memory:")
+    s = Storage(conn); s.init_schema()
+    kw = dict(telegram_token="t", openai_api_key="k",
+              participation_cooldown=2, participation_threshold=0.75)
+    kw.update(settings_kw)
+    settings = Settings(**kw)
+    return Orchestrator(
+        storage=s, extractor=None, updater=None,
+        guardian=Guardian(llm=None), knowledge=None, settings=settings,
+        participant=participant,
+    )
+
+
+def _seed(o, n):
+    pid = o.storage.get_or_create_project(100, "Acme")
+    for i in range(1, n + 1):
+        o.storage.add_message(pid, i, "ana", f"vamos priorizar o segmento {i}", float(i))
+    return pid
+
+
+def test_participate_gates_before_llm(fake_llm):
+    from concierge.models import Contribution, ProjectMode
+    good = Contribution(should_contribute=True, relevance=0.9,
+                        kind="question", text="E a evidência?")
+    # enabled=False
+    p = _FakeParticipant(contribution=good)
+    o = _orch_with_participant(fake_llm, p, participation_enabled=False)
+    pid = _seed(o, 3)
+    assert o.participate(pid, 3, "vamos priorizar enterprise") is None
+    # silent mode
+    p2 = _FakeParticipant(contribution=good)
+    o2 = _orch_with_participant(fake_llm, p2)
+    pid2 = _seed(o2, 3)
+    o2.storage.set_mode(pid2, ProjectMode.SILENT)
+    assert o2.participate(pid2, 3, "vamos priorizar enterprise") is None
+    # cooldown not elapsed (cooldown=2; only 1 message since marker)
+    p3 = _FakeParticipant(contribution=good)
+    o3 = _orch_with_participant(fake_llm, p3)
+    pid3 = _seed(o3, 3)
+    o3.storage.set_last_participation(pid3, 2)
+    assert o3.participate(pid3, 3, "vamos priorizar enterprise") is None
+    # prefilter: trivial text
+    p4 = _FakeParticipant(contribution=good)
+    o4 = _orch_with_participant(fake_llm, p4)
+    pid4 = _seed(o4, 3)
+    assert o4.participate(pid4, 3, "kkk ok") is None
+    # none of the gated cases reached the LLM stage
+    assert p.consider_calls == p2.consider_calls == p3.consider_calls == p4.consider_calls == []
+
+
+def test_participate_threshold_and_success_updates_cooldown(fake_llm):
+    from concierge.models import Contribution
+    weak = Contribution(should_contribute=True, relevance=0.5, kind="question", text="?")
+    p = _FakeParticipant(contribution=weak)
+    o = _orch_with_participant(fake_llm, p)
+    pid = _seed(o, 3)
+    assert o.participate(pid, 3, "vamos priorizar o segmento enterprise") is None
+    strong = Contribution(should_contribute=True, relevance=0.9,
+                          kind="connection", text="Isso liga com a hipótese X.")
+    p2 = _FakeParticipant(contribution=strong)
+    o2 = _orch_with_participant(fake_llm, p2)
+    pid2 = _seed(o2, 3)
+    out = o2.participate(pid2, 3, "vamos priorizar o segmento enterprise")
+    assert out == "Isso liga com a hipótese X."
+    assert o2.storage.get_last_participation(pid2) == 3
+    # window and personality were assembled
+    window, items, materials, style = p2.consider_calls[0]
+    assert len(window) == 3 and materials == ""
+
+
+def test_respond_mention_no_gates_and_style(fake_llm):
+    p = _FakeParticipant(reply="Na minha visão, testem com 5 clientes.")
+    o = _orch_with_participant(fake_llm, p, participation_enabled=False)
+    pid = _seed(o, 2)
+    o.storage.set_personality(pid, "voz de mentor")
+    out = o.respond_mention(pid, 2, "bot, o que acha?")
+    assert out == "Na minha visão, testem com 5 clientes."
+    _, _, _, mention, style = p.respond_calls[0]
+    assert mention == "bot, o que acha?" and style == "voz de mentor"
+
+
+def test_participate_none_participant_is_silent(fake_llm):
+    o = _orch_with_participant(fake_llm, None)
+    pid = _seed(o, 3)
+    assert o.participate(pid, 3, "vamos priorizar enterprise") is None
+    assert o.respond_mention(pid, 3, "bot?") is None

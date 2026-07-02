@@ -3,7 +3,7 @@ from concierge.materials import types_for_module
 
 
 class Orchestrator:
-    def __init__(self, storage, extractor, updater, guardian, knowledge, settings, reconciler=None):
+    def __init__(self, storage, extractor, updater, guardian, knowledge, settings, reconciler=None, participant=None):
         self.storage = storage
         self.extractor = extractor
         self.updater = updater
@@ -11,6 +11,7 @@ class Orchestrator:
         self.knowledge = knowledge
         self.settings = settings
         self.reconciler = reconciler
+        self.participant = participant
 
     def ingest_message(self, chat_id, chat_name, telegram_msg_id, author, text, ts):
         pid = self.storage.get_or_create_project(chat_id, chat_name)
@@ -98,3 +99,43 @@ class Orchestrator:
                 f"(item relacionado: {verdict.item_content})"
             )
         return None
+
+    def _participant_context(self, project_id, text):
+        window = self.storage.recent_messages(project_id, 15)
+        items = self.storage.items_by_status(
+            project_id, [ItemStatus.ACTIVE, ItemStatus.VALIDATED]
+        )
+        materials = ""
+        if self.knowledge is not None:
+            materials = self.knowledge.query(
+                project_id, text, material_types=types_for_module("participant")
+            )
+        style = self.storage.get_personality(project_id)
+        return window, items, materials, style
+
+    def participate(self, project_id, message_id, text):
+        if self.participant is None or not self.settings.participation_enabled:
+            return None
+        if self.storage.get_mode(project_id) == ProjectMode.SILENT:
+            return None
+        marker = self.storage.get_last_participation(project_id)
+        if (marker is not None and
+                self.storage.messages_since(project_id, marker)
+                < self.settings.participation_cooldown):
+            return None
+        if not self.guardian.looks_strategic(text) or len(text) < 20:
+            return None
+        window, items, materials, style = self._participant_context(project_id, text)
+        c = self.participant.consider(window, items, materials, style=style)
+        if c is None or not c.should_contribute:
+            return None
+        if c.relevance < self.settings.participation_threshold or not c.text.strip():
+            return None
+        self.storage.set_last_participation(project_id, message_id)
+        return c.text
+
+    def respond_mention(self, project_id, message_id, text):
+        if self.participant is None:
+            return None
+        window, items, materials, style = self._participant_context(project_id, text)
+        return self.participant.respond(window, items, materials, text, style=style)
