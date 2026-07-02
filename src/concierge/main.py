@@ -8,6 +8,7 @@ from concierge.guardian import Guardian
 from concierge.knowledge import KnowledgeBase
 from concierge.orchestrator import Orchestrator
 from concierge.reconciler import Reconciler
+from concierge.participant import Participant
 from concierge.llm.factory import build_llm
 from concierge.bot import build_application
 from concierge.materials import MaterialService
@@ -52,6 +53,7 @@ def main():
         knowledge=knowledge,
         settings=settings,
         reconciler=Reconciler(llm),
+        participant=Participant(llm),
     )
     material_service = MaterialService(llm, knowledge, storage)
     stylist = Stylist(llm)

@@ -159,6 +159,14 @@ def handle_personality(orchestrator, stylist, chat_id, args):
     return reply
 
 
+def _is_mention(text, bot_username, reply_to_is_bot):
+    if reply_to_is_bot:
+        return True
+    if not bot_username:
+        return False
+    return f"@{bot_username.lower()}" in (text or "").lower()
+
+
 def _styled(orchestrator, stylist, chat_id, text):
     if stylist is None:
         return text
@@ -208,9 +216,23 @@ def build_application(orchestrator, token, material_service=None, stylist=None):
             chat.id, chat.title or str(chat.id), msg.message_id,
             author, msg.text, msg.date.timestamp(),
         )
-        alert = orchestrator.check_coherence(pid, msg.message_id, msg.text)
-        if alert:
-            await msg.reply_text(alert)
+        reply_to_is_bot = bool(
+            msg.reply_to_message
+            and msg.reply_to_message.from_user
+            and msg.reply_to_message.from_user.id == ctx.bot.id
+        )
+        if _is_mention(msg.text, ctx.bot.username, reply_to_is_bot):
+            reply = orchestrator.respond_mention(pid, msg.message_id, msg.text)
+            if reply:
+                await msg.reply_text(reply)
+        else:
+            alert = orchestrator.check_coherence(pid, msg.message_id, msg.text)
+            if alert:
+                await msg.reply_text(alert)
+            else:
+                contribution = orchestrator.participate(pid, msg.message_id, msg.text)
+                if contribution:
+                    await msg.reply_text(contribution)
         if orchestrator.should_sync(pid):
             orchestrator.run_sync(pid)
 
