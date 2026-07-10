@@ -1,6 +1,5 @@
 import json
 
-from concierge.llm.client import call_validated
 from concierge.models import Contribution, StyledText
 
 
@@ -50,24 +49,23 @@ def _context(window, items, materials):
 
 
 class Participant:
-    def __init__(self, llm):
-        self.llm = llm
-
-    def _system(self, base, style):
-        return base + (f" Write in this voice: {style}" if style else "")
+    def __init__(self, executor, consider_agent=None, respond_agent=None):
+        self.executor = executor
+        self.consider_agent = consider_agent
+        self.respond_agent = respond_agent
 
     def consider(self, window, items, materials, style=""):
-        result = call_validated(
-            self.llm, self._system(CONSIDER_SYSTEM, style),
-            _context(window, items, materials), Contribution,
-        )
+        user = _context(window, items, materials)
+        if style:
+            user += f"\n\nWrite in this voice: {style}"
+        result = self.executor.run_validated(self.consider_agent, user, Contribution)
         if result is not None:
             result.text = _unwrap_text(result.text)
         return result
 
     def respond(self, window, items, materials, mention_text, style=""):
         user = _context(window, items, materials) + f"\n\nADDRESSED TO YOU:\n{mention_text}"
-        result = call_validated(
-            self.llm, self._system(RESPOND_SYSTEM, style), user, StyledText
-        )
+        if style:
+            user += f"\n\nWrite in this voice: {style}"
+        result = self.executor.run_validated(self.respond_agent, user, StyledText)
         return _unwrap_text(result.text) if result is not None else None

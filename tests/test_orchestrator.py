@@ -8,11 +8,12 @@ from concierge.guardian import Guardian
 from concierge.orchestrator import Orchestrator
 from concierge.models import (
     ItemType, ItemStatus, ProjectMode, ExtractionResult, CanvasUpdateResult,
+    CoherenceVerdict, Contribution,
 )
 
 
 @pytest.fixture
-def orch(fake_llm, fake_executor):
+def orch(fake_executor):
     conn = sqlite3.connect(":memory:")
     s = Storage(conn); s.init_schema()
     extractor_ex = fake_executor(results=[ExtractionResult.model_validate({
@@ -26,7 +27,7 @@ def orch(fake_llm, fake_executor):
         storage=s,
         extractor=Extractor(extractor_ex),
         updater=CanvasUpdater(updater_ex),
-        guardian=Guardian(llm=None),
+        guardian=Guardian(None),
         knowledge=None,
         settings=settings,
     )
@@ -53,31 +54,31 @@ def test_run_sync_creates_items_and_blocks(orch):
     assert orch.storage.unprocessed_messages(pid) == []
 
 
-def _orch_with_guardian(guardian_llm):
+def _orch_with_guardian(guardian_executor):
     conn = sqlite3.connect(":memory:")
     s = Storage(conn); s.init_schema()
     settings = Settings(telegram_token="t", openai_api_key="k", confidence_threshold=0.75)
     return Orchestrator(
         storage=s, extractor=None, updater=None,
-        guardian=Guardian(guardian_llm), knowledge=None, settings=settings,
+        guardian=Guardian(guardian_executor), knowledge=None, settings=settings,
     )
 
 
-def test_check_silent_on_trivial_message(fake_llm):
-    o = _orch_with_guardian(fake_llm(responses=[]))
+def test_check_silent_on_trivial_message(fake_executor):
+    o = _orch_with_guardian(fake_executor(results=[]))
     pid = o.storage.get_or_create_project(100, "Acme")
     assert o.check_coherence(pid, None, "kkk ok") is None
-    # no LLM call was made (prefilter blocked it)
-    assert o.guardian.llm.calls == []
+    # no executor call was made (prefilter blocked it)
+    assert o.guardian.executor.calls == []
 
 
-def test_check_alerts_on_high_confidence_contradiction(fake_llm):
-    o = _orch_with_guardian(fake_llm(responses=[{
-        "contradicts": True,
-        "item_content": "Validated SMB focus",
-        "reason": "proposes enterprise",
-        "confidence": 0.9,
-    }]))
+def test_check_alerts_on_high_confidence_contradiction(fake_executor):
+    o = _orch_with_guardian(fake_executor(results=[CoherenceVerdict(
+        contradicts=True,
+        item_content="Validated SMB focus",
+        reason="proposes enterprise",
+        confidence=0.9,
+    )]))
     pid = o.storage.get_or_create_project(100, "Acme")
     o.storage.add_item(pid, ItemType.HYPOTHESIS, "Validated SMB focus", 0.9, None,
                        status=ItemStatus.VALIDATED)
@@ -87,10 +88,10 @@ def test_check_alerts_on_high_confidence_contradiction(fake_llm):
     assert o.storage.last_intervention(pid)["confidence"] == 0.9
 
 
-def test_check_silent_below_threshold(fake_llm):
-    o = _orch_with_guardian(fake_llm(responses=[{
-        "contradicts": True, "item_content": "x", "reason": "maybe", "confidence": 0.5,
-    }]))
+def test_check_silent_below_threshold(fake_executor):
+    o = _orch_with_guardian(fake_executor(results=[CoherenceVerdict(
+        contradicts=True, item_content="x", reason="maybe", confidence=0.5,
+    )]))
     pid = o.storage.get_or_create_project(100, "Acme")
     assert o.check_coherence(pid, 1, "vamos mudar o foco") is None
 
@@ -119,7 +120,7 @@ def test_run_sync_applies_reconciliation(fake_executor):
     settings = Settings(telegram_token="t", openai_api_key="k", batch_size=1)
     o = Orchestrator(
         storage=s, extractor=Extractor(extractor_ex), updater=CanvasUpdater(updater_ex),
-        guardian=Guardian(llm=None), knowledge=None, settings=settings,
+        guardian=Guardian(None), knowledge=None, settings=settings,
         reconciler=Reconciler(reconciler_ex),
     )
     pid = o.ingest_message(100, "Acme", 1, "ana", "smbs will pay", 1.0)
@@ -129,8 +130,8 @@ def test_run_sync_applies_reconciliation(fake_executor):
     assert validated[0]["content"] == "SMBs will pay"
 
 
-def test_check_silent_when_mode_silent(fake_llm):
-    o = _orch_with_guardian(fake_llm(responses=[]))
+def test_check_silent_when_mode_silent(fake_executor):
+    o = _orch_with_guardian(fake_executor(results=[]))
     pid = o.storage.get_or_create_project(100, "Acme")
     o.storage.set_mode(pid, ProjectMode.SILENT)
     assert o.check_coherence(pid, 1, "vamos priorizar enterprise") is None
@@ -164,7 +165,7 @@ def test_run_sync_builds_canvas_from_validated_items(fake_executor):
     settings = Settings(telegram_token="t", openai_api_key="k", batch_size=1)
     o = Orchestrator(
         storage=s, extractor=Extractor(extractor_ex), updater=CanvasUpdater(updater_ex),
-        guardian=Guardian(llm=None), knowledge=None, settings=settings,
+        guardian=Guardian(None), knowledge=None, settings=settings,
         reconciler=Reconciler(reconciler_ex),
     )
     pid = o.ingest_message(100, "Acme", 1, "ana", "vamos focar em smbs", 1.0)
@@ -209,7 +210,7 @@ def test_run_sync_queries_knowledge_per_module(fake_executor):
     settings = Settings(telegram_token="t", openai_api_key="k", batch_size=1)
     o = Orchestrator(
         storage=s, extractor=Extractor(ex_ex), updater=CanvasUpdater(up_ex),
-        guardian=Guardian(llm=None), knowledge=spy, settings=settings,
+        guardian=Guardian(None), knowledge=spy, settings=settings,
         reconciler=Reconciler(rc_ex),
     )
     pid = o.ingest_message(100, "Acme", 1, "ana", "vamos focar em smbs", 1.0)
@@ -222,10 +223,10 @@ def test_run_sync_queries_knowledge_per_module(fake_executor):
     assert "REFERENCE MATERIAL:\nCTX" in ex_ex.calls[0][1]
 
 
-def test_check_coherence_uses_guardian_filter(fake_llm):
-    o = _orch_with_guardian(fake_llm(responses=[{
-        "contradicts": False, "item_content": None, "reason": "ok", "confidence": 0.1,
-    }]))
+def test_check_coherence_uses_guardian_filter(fake_executor):
+    o = _orch_with_guardian(fake_executor(results=[CoherenceVerdict(
+        contradicts=False, item_content=None, reason="ok", confidence=0.1,
+    )]))
     spy = _SpyKnowledge()
     o.knowledge = spy
     pid = o.storage.get_or_create_project(100, "Acme")
@@ -235,15 +236,15 @@ def test_check_coherence_uses_guardian_filter(fake_llm):
     )
 
 
-def test_check_coherence_passes_personality_as_style(fake_llm):
-    guardian_llm = fake_llm(responses=[{
-        "contradicts": False, "item_content": None, "reason": "ok", "confidence": 0.1,
-    }])
-    o = _orch_with_guardian(guardian_llm)
+def test_check_coherence_passes_personality_as_style(fake_executor):
+    guardian_ex = fake_executor(results=[CoherenceVerdict(
+        contradicts=False, item_content=None, reason="ok", confidence=0.1,
+    )])
+    o = _orch_with_guardian(guardian_ex)
     pid = o.storage.get_or_create_project(100, "Acme")
     o.storage.set_personality(pid, "fale como um mentor direto")
     o.check_coherence(pid, 1, "vamos priorizar enterprise")
-    assert "fale como um mentor direto" in guardian_llm.calls[0][0]
+    assert "fale como um mentor direto" in guardian_ex.calls[0][1]
 
 
 class _FakeParticipant:
@@ -262,7 +263,7 @@ class _FakeParticipant:
         return self.reply
 
 
-def _orch_with_participant(fake_llm, participant, **settings_kw):
+def _orch_with_participant(fake_executor, participant, **settings_kw):
     conn = sqlite3.connect(":memory:")
     s = Storage(conn); s.init_schema()
     kw = dict(telegram_token="t", openai_api_key="k",
@@ -271,7 +272,7 @@ def _orch_with_participant(fake_llm, participant, **settings_kw):
     settings = Settings(**kw)
     return Orchestrator(
         storage=s, extractor=None, updater=None,
-        guardian=Guardian(llm=None), knowledge=None, settings=settings,
+        guardian=Guardian(None), knowledge=None, settings=settings,
         participant=participant,
     )
 
@@ -283,47 +284,47 @@ def _seed(o, n):
     return pid
 
 
-def test_participate_gates_before_llm(fake_llm):
+def test_participate_gates_before_llm(fake_executor):
     from concierge.models import Contribution, ProjectMode
     good = Contribution(should_contribute=True, relevance=0.9,
                         kind="question", text="E a evidência?")
     # enabled=False
     p = _FakeParticipant(contribution=good)
-    o = _orch_with_participant(fake_llm, p, participation_enabled=False)
+    o = _orch_with_participant(fake_executor, p, participation_enabled=False)
     pid = _seed(o, 3)
     assert o.participate(pid, 3, "vamos priorizar enterprise") is None
     # silent mode
     p2 = _FakeParticipant(contribution=good)
-    o2 = _orch_with_participant(fake_llm, p2)
+    o2 = _orch_with_participant(fake_executor, p2)
     pid2 = _seed(o2, 3)
     o2.storage.set_mode(pid2, ProjectMode.SILENT)
     assert o2.participate(pid2, 3, "vamos priorizar enterprise") is None
     # cooldown not elapsed (cooldown=2; only 1 message since marker)
     p3 = _FakeParticipant(contribution=good)
-    o3 = _orch_with_participant(fake_llm, p3)
+    o3 = _orch_with_participant(fake_executor, p3)
     pid3 = _seed(o3, 3)
     o3.storage.set_last_participation(pid3, 2)
     assert o3.participate(pid3, 3, "vamos priorizar enterprise") is None
     # prefilter: trivial text
     p4 = _FakeParticipant(contribution=good)
-    o4 = _orch_with_participant(fake_llm, p4)
+    o4 = _orch_with_participant(fake_executor, p4)
     pid4 = _seed(o4, 3)
     assert o4.participate(pid4, 3, "kkk ok") is None
     # none of the gated cases reached the LLM stage
     assert p.consider_calls == p2.consider_calls == p3.consider_calls == p4.consider_calls == []
 
 
-def test_participate_threshold_and_success_updates_cooldown(fake_llm):
+def test_participate_threshold_and_success_updates_cooldown(fake_executor):
     from concierge.models import Contribution
     weak = Contribution(should_contribute=True, relevance=0.5, kind="question", text="?")
     p = _FakeParticipant(contribution=weak)
-    o = _orch_with_participant(fake_llm, p)
+    o = _orch_with_participant(fake_executor, p)
     pid = _seed(o, 3)
     assert o.participate(pid, 3, "vamos priorizar o segmento enterprise") is None
     strong = Contribution(should_contribute=True, relevance=0.9,
                           kind="connection", text="Isso liga com a hipótese X.")
     p2 = _FakeParticipant(contribution=strong)
-    o2 = _orch_with_participant(fake_llm, p2)
+    o2 = _orch_with_participant(fake_executor, p2)
     pid2 = _seed(o2, 3)
     out = o2.participate(pid2, 3, "vamos priorizar o segmento enterprise")
     assert out == "Isso liga com a hipótese X."
@@ -333,9 +334,9 @@ def test_participate_threshold_and_success_updates_cooldown(fake_llm):
     assert len(window) == 3 and materials == ""
 
 
-def test_respond_mention_no_gates_and_style(fake_llm):
+def test_respond_mention_no_gates_and_style(fake_executor):
     p = _FakeParticipant(reply="Na minha visão, testem com 5 clientes.")
-    o = _orch_with_participant(fake_llm, p, participation_enabled=False)
+    o = _orch_with_participant(fake_executor, p, participation_enabled=False)
     pid = _seed(o, 2)
     o.storage.set_personality(pid, "voz de mentor")
     out = o.respond_mention(pid, 2, "bot, o que acha?")
@@ -344,19 +345,19 @@ def test_respond_mention_no_gates_and_style(fake_llm):
     assert mention == "bot, o que acha?" and style == "voz de mentor"
 
 
-def test_participate_none_participant_is_silent(fake_llm):
-    o = _orch_with_participant(fake_llm, None)
+def test_participate_none_participant_is_silent(fake_executor):
+    o = _orch_with_participant(fake_executor, None)
     pid = _seed(o, 3)
     assert o.participate(pid, 3, "vamos priorizar enterprise") is None
     assert o.respond_mention(pid, 3, "bot?") is None
 
 
-def test_participate_cooldown_survives_divergent_telegram_ids(fake_llm):
+def test_participate_cooldown_survives_divergent_telegram_ids(fake_executor):
     from concierge.models import Contribution
     strong = Contribution(should_contribute=True, relevance=0.9,
                           kind="connection", text="Liga com a hipótese X.")
     p = _FakeParticipant(contribution=strong)
-    o = _orch_with_participant(fake_llm, p)  # cooldown=2
+    o = _orch_with_participant(fake_executor, p)  # cooldown=2
     pid = o.storage.get_or_create_project(100, "Acme")
     # Telegram ids diverge from row ids (offset +1000), like production
     for i in range(1, 4):

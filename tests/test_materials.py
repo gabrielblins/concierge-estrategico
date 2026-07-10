@@ -5,7 +5,7 @@ import sqlite3
 from concierge.materials import (
     extract_text, MaterialError, classify, types_for_module, ROUTING, CAPABILITIES, MaterialService,
 )
-from concierge.models import MaterialType
+from concierge.models import MaterialType, ClassificationResult
 from concierge.storage import Storage
 from concierge.knowledge import KnowledgeBase
 
@@ -67,20 +67,20 @@ def test_routing_covers_all_types_and_inverts():
     assert types_for_module("updater") == ["canvas_guide", "custom_framework"]
 
 
-def test_classify_returns_type_and_falls_back(fake_llm):
-    llm = fake_llm(responses=[{"material_type": "validation_guide"}])
-    assert classify(llm, "guia.pdf", "como validar hipóteses...") == MaterialType.VALIDATION_GUIDE
-    bad = fake_llm(responses=[{"material_type": "zzz"}, {"material_type": "zzz"}])
-    assert classify(bad, "x.txt", "abc") == MaterialType.GENERIC
+def test_classify_returns_type_and_falls_back(fake_executor):
+    ex = fake_executor(results=[ClassificationResult(material_type="validation_guide")])
+    assert classify(ex, None, "guia.pdf", "como validar hipóteses...") == MaterialType.VALIDATION_GUIDE
+    bad = fake_executor(results=[None])
+    assert classify(bad, None, "x.txt", "abc") == MaterialType.GENERIC
 
 
-def test_material_service_end_to_end(fake_llm):
+def test_material_service_end_to_end(fake_executor):
     conn = sqlite3.connect(":memory:")
     st = Storage(conn); st.init_schema()
     pid = st.get_or_create_project(100, "Acme")
     kb = KnowledgeBase(chromadb.EphemeralClient())
-    llm = fake_llm(responses=[{"material_type": "canvas_guide"}])
-    svc = MaterialService(llm, kb, st)
+    ex = fake_executor(results=[ClassificationResult(material_type="canvas_guide")])
+    svc = MaterialService(ex, None, kb, st)
     mtype, chunks = svc.add_material(pid, "manual.txt", "os nove blocos do canvas " * 50)
     assert mtype == MaterialType.CANVAS_GUIDE
     assert chunks >= 1

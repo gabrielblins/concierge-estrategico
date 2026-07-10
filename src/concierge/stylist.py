@@ -1,4 +1,3 @@
-from concierge.llm.client import call_validated
 from concierge.models import StyledText
 
 PRESETS = {
@@ -29,14 +28,15 @@ SYSTEM = (
 
 
 class Stylist:
-    def __init__(self, llm):
-        self.llm = llm
+    def __init__(self, executor, agent=None):
+        self.executor = executor
+        self.agent = agent
 
     def restyle(self, text: str, personality: str) -> str:
         if not personality or not personality.strip():
             return text
         user = f"VOICE:\n{personality}\n\nMESSAGE:\n{text}"
-        result = call_validated(self.llm, SYSTEM, user, StyledText)
+        result = self.executor.run_validated(self.agent, user, StyledText)
         if result is None:
             return text
         return result.text

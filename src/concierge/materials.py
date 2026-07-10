@@ -1,5 +1,4 @@
 import io
-from concierge.llm.client import call_validated
 from concierge.models import ClassificationResult, MaterialType
 
 
@@ -77,22 +76,23 @@ def types_for_module(module: str) -> list[str]:
     return sorted(t.value for t, mods in ROUTING.items() if module in mods)
 
 
-def classify(llm, filename: str, text: str) -> MaterialType:
+def classify(executor, agent, filename: str, text: str) -> MaterialType:
     user = f"FILENAME: {filename}\n\nOPENING TEXT:\n{text[:2000]}"
-    result = call_validated(llm, CLASSIFY_SYSTEM, user, ClassificationResult)
+    result = executor.run_validated(agent, user, ClassificationResult)
     if result is None:
         return MaterialType.GENERIC
     return result.material_type
 
 
 class MaterialService:
-    def __init__(self, llm, knowledge, storage):
-        self.llm = llm
+    def __init__(self, executor, agent, knowledge, storage):
+        self.executor = executor
+        self.agent = agent
         self.knowledge = knowledge
         self.storage = storage
 
     def add_material(self, project_id: int, filename: str, text: str) -> tuple[MaterialType, int]:
-        mtype = classify(self.llm, filename, text)
+        mtype = classify(self.executor, self.agent, filename, text)
         chunks = self.knowledge.ingest(
             project_id, filename, text, material_type=mtype.value
         )

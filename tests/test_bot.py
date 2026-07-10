@@ -15,7 +15,7 @@ def _orch(fake_executor):
     settings = Settings(telegram_token="t", openai_api_key="k")
     return Orchestrator(s, Extractor(fake_executor()),
                         CanvasUpdater(fake_executor()),
-                        Guardian(llm=None), None, settings)
+                        Guardian(None), None, settings)
 
 
 def test_handle_start_creates_project_and_notifies(fake_executor):

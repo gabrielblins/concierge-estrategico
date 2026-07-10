@@ -1,4 +1,3 @@
-from concierge.llm.client import call_validated
 from concierge.models import CoherenceVerdict
 
 SIGNALS = [
@@ -17,8 +16,9 @@ SYSTEM = (
 
 
 class Guardian:
-    def __init__(self, llm):
-        self.llm = llm
+    def __init__(self, executor, agent=None):
+        self.executor = executor
+        self.agent = agent
 
     def looks_strategic(self, text: str) -> bool:
         low = text.lower()
@@ -31,7 +31,6 @@ class Guardian:
             f"KNOWN ITEMS:\n{items_txt}\n\n"
             f"METHOD CONTEXT:\n{method_context}"
         )
-        system = SYSTEM
         if style:
-            system += f" Write the 'reason' field in this voice: {style}"
-        return call_validated(self.llm, system, user, CoherenceVerdict)
+            user += f"\n\nWrite the 'reason' field in this voice: {style}"
+        return self.executor.run_validated(self.agent, user, CoherenceVerdict)
