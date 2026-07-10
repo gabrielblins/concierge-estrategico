@@ -4,7 +4,7 @@
 - Gabriel Barros Lins Lelis de Oliveira.
 - Luiz de França Afonso Ferreira Filho.
 
-# [Link para o vídeo de apresentação]()
+# _ [Link para o vídeo de apresentação]()
 
 # Strategic Concierge Bot
 
