@@ -231,9 +231,13 @@ def test_check_coherence_uses_guardian_filter(fake_executor):
     o.knowledge = spy
     pid = o.storage.get_or_create_project(100, "Acme")
     o.check_coherence(pid, 1, "vamos priorizar enterprise")
-    assert spy.calls[0][1] == (
-        "custom_framework", "generic", "methodology", "validation_guide"
-    )
+    # the funnel gathers participant context alongside the guardian's, so
+    # assert the guardian-specific filter was used at least once (not
+    # necessarily first, since context-gathering order is an implementation
+    # detail of the funnel run).
+    assert ("custom_framework", "generic", "methodology", "validation_guide") in {
+        mt for _, mt in spy.calls
+    }
 
 
 def test_check_coherence_passes_personality_as_style(fake_executor):
@@ -270,9 +274,15 @@ def _orch_with_participant(fake_executor, participant, **settings_kw):
               participation_cooldown=2, participation_threshold=0.75)
     kw.update(settings_kw)
     settings = Settings(**kw)
+    # The funnel always consults the guardian before the participant (gates
+    # ordering: silent -> guardian -> participation), so give it a working
+    # (non-contradicting) executor rather than None.
+    guardian_ex = fake_executor(results=[CoherenceVerdict(
+        contradicts=False, item_content=None, reason="ok", confidence=0.1,
+    ) for _ in range(20)])
     return Orchestrator(
         storage=s, extractor=None, updater=None,
-        guardian=Guardian(None), knowledge=None, settings=settings,
+        guardian=Guardian(guardian_ex), knowledge=None, settings=settings,
         participant=participant,
     )
 

@@ -72,33 +72,72 @@ class Orchestrator:
         self.storage.mark_processed([m["id"] for m in pending])
         return len(new_ids)
 
-    def check_coherence(self, project_id, message_id, text):
-        if self.storage.get_mode(project_id) == ProjectMode.SILENT:
-            return None
-        if not self.guardian.looks_strategic(text):
-            return None
+    def _funnel(self):
+        if getattr(self, "_funnel_agent", None) is None:
+            from concierge.agents.funnel import MessageFunnelAgent
+
+            self._funnel_agent = MessageFunnelAgent(
+                name="message_funnel",
+                guardian_facade=self.guardian,
+                participant_facade=self.participant,
+                confidence_threshold=self.settings.confidence_threshold,
+                participation_threshold=self.settings.participation_threshold,
+            )
+        return self._funnel_agent
+
+    def _run_funnel(self, project_id, message_id, text):
+        key = (project_id, message_id)
+        cached = getattr(self, "_last_funnel", None)
+        if cached and cached[0] == key:
+            return cached[1]
+        gates = {
+            "silent": self.storage.get_mode(project_id) == ProjectMode.SILENT,
+            "participation_ok": self._participation_ok(project_id, text),
+        }
         known = self.storage.items_by_status(
             project_id, [ItemStatus.VALIDATED, ItemStatus.DISCARDED]
         )
-        context = ""
+        window, items, materials_p, style = self._participant_context(
+            project_id, text
+        )
+        materials_g = ""
         if self.knowledge is not None:
-            context = self.knowledge.query(
+            materials_g = self.knowledge.query(
                 project_id, text, material_types=types_for_module("guardian")
             )
-        style = self.storage.get_personality(project_id)
-        verdict = self.guardian.check(text, known, context, style=style)
-        if verdict is None:
+        if not self.guardian.looks_strategic(text):
+            result = {"decision": "none"}
+        else:
+            result = self._funnel().decide(
+                gates=gates, text=text, known_items=known, window=window,
+                items=items, materials_guardian=materials_g,
+                materials_participant=materials_p, style=style,
+            )
+        self._last_funnel = (key, result)
+        return result
+
+    def _participation_ok(self, project_id, text):
+        if self.participant is None or not self.settings.participation_enabled:
+            return False
+        marker = self.storage.get_last_participation(project_id)
+        if (marker is not None and
+                self.storage.messages_since(project_id, marker)
+                < self.settings.participation_cooldown):
+            return False
+        return len(text) >= 20
+
+    def check_coherence(self, project_id, message_id, text):
+        result = self._run_funnel(project_id, message_id, text)
+        if result["decision"] != "alert":
             return None
-        if verdict.contradicts and verdict.confidence >= self.settings.confidence_threshold:
-            self.storage.add_intervention(
-                project_id, message_id, None, verdict.reason, verdict.confidence
-            )
-            return (
-                "⚠️ Atenção à coerência estratégica:\n"
-                f"{verdict.reason}\n"
-                f"(item relacionado: {verdict.item_content})"
-            )
-        return None
+        self.storage.add_intervention(
+            project_id, message_id, None, result["reason"], result["confidence"]
+        )
+        return (
+            "⚠️ Atenção à coerência estratégica:\n"
+            f"{result['reason']}\n"
+            f"(item relacionado: {result['item_content']})"
+        )
 
     def _participant_context(self, project_id, text):
         window = self.storage.recent_messages(project_id, 15)
@@ -114,26 +153,13 @@ class Orchestrator:
         return window, items, materials, style
 
     def participate(self, project_id, message_id, text):
-        if self.participant is None or not self.settings.participation_enabled:
+        result = self._run_funnel(project_id, message_id, text)
+        if result["decision"] != "contribution":
             return None
-        if self.storage.get_mode(project_id) == ProjectMode.SILENT:
-            return None
-        marker = self.storage.get_last_participation(project_id)
-        if (marker is not None and
-                self.storage.messages_since(project_id, marker)
-                < self.settings.participation_cooldown):
-            return None
-        if not self.guardian.looks_strategic(text) or len(text) < 20:
-            return None
-        window, items, materials, style = self._participant_context(project_id, text)
-        c = self.participant.consider(window, items, materials, style=style)
-        if c is None or not c.should_contribute:
-            return None
-        if c.relevance < self.settings.participation_threshold or not c.text.strip():
-            return None
+        window = self.storage.recent_messages(project_id, 1)
         if window:
             self.storage.set_last_participation(project_id, window[-1]["id"])
-        return c.text
+        return result["text"]
 
     def respond_mention(self, project_id, message_id, text):
         if self.participant is None:
