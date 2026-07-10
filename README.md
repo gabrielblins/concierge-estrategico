@@ -1,4 +1,4 @@
-# PPGEEC2327 - TÓPICOS ESPECIAIS EM PROCESSAMENTO INTELIGENTE DA INFORMAÇÃO - T01 (2026.1 - 5T3456) <br> [Link para o vídeo de apresentação]()
+# PPGEEC2327 - TÓPICOS ESPECIAIS EM PROCESSAMENTO INTELIGENTE DA INFORMAÇÃO - T01 (2026.1 - 5T3456) <br> [Link para o vídeo de apresentação](https://youtu.be/UWPcRPlUaZ4)
 
 ## Discentes:
 - Gabriel Barros Lins Lelis de Oliveira.
