@@ -1,3 +1,11 @@
+# PPGEEC2327 - TÓPICOS ESPECIAIS EM PROCESSAMENTO INTELIGENTE DA INFORMAÇÃO - T01 (2026.1 - 5T3456)
+
+## Discentes:
+- Gabriel Barros Lins Lelis de Oliveira.
+- Luiz de França Afonso Ferreira Filho.
+
+[Link para o vídeo de apresentação]()
+
 # Strategic Concierge Bot
 
 Telegram bot that turns team conversations into a living strategic base:
