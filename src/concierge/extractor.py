@@ -1,4 +1,3 @@
-from concierge.llm.client import call_validated
 from concierge.models import ExtractionResult
 
 SYSTEM = (
@@ -11,14 +10,17 @@ SYSTEM = (
 
 
 class Extractor:
-    def __init__(self, llm):
-        self.llm = llm
+    def __init__(self, executor, agent=None):
+        self.executor = executor
+        self.agent = agent
 
     def extract(self, messages, context=""):
         transcript = "\n".join(f"{m['author']}: {m['text']}" for m in messages)
         if context:
             transcript += f"\n\nREFERENCE MATERIAL:\n{context}"
-        result = call_validated(self.llm, SYSTEM, transcript, ExtractionResult)
+        result = self.executor.run_validated(
+            self.agent, transcript, ExtractionResult
+        )
         if result is None:
             return []
         return result.items

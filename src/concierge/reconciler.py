@@ -1,4 +1,3 @@
-from concierge.llm.client import call_validated
 from concierge.models import ReconciliationResult, ItemStatus
 
 SYSTEM = (
@@ -15,8 +14,9 @@ _ALLOWED = {ItemStatus.VALIDATED, ItemStatus.DISCARDED}
 
 
 class Reconciler:
-    def __init__(self, llm):
-        self.llm = llm
+    def __init__(self, executor, agent=None):
+        self.executor = executor
+        self.agent = agent
 
     def reconcile(self, new_items, active_items, context=""):
         known_ids = {i["id"] for i in new_items} | {i["id"] for i in active_items}
@@ -25,7 +25,7 @@ class Reconciler:
         user = f"NEW ITEMS:\n{new_txt}\n\nEXISTING ACTIVE ITEMS:\n{active_txt}"
         if context:
             user += f"\n\nREFERENCE MATERIAL:\n{context}"
-        result = call_validated(self.llm, SYSTEM, user, ReconciliationResult)
+        result = self.executor.run_validated(self.agent, user, ReconciliationResult)
         if result is None:
             return []
         return [

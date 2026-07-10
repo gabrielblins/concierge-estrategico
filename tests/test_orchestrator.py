@@ -6,24 +6,26 @@ from concierge.extractor import Extractor
 from concierge.updater import CanvasUpdater
 from concierge.guardian import Guardian
 from concierge.orchestrator import Orchestrator
-from concierge.models import ItemType, ItemStatus, ProjectMode
+from concierge.models import (
+    ItemType, ItemStatus, ProjectMode, ExtractionResult, CanvasUpdateResult,
+)
 
 
 @pytest.fixture
-def orch(fake_llm):
+def orch(fake_llm, fake_executor):
     conn = sqlite3.connect(":memory:")
     s = Storage(conn); s.init_schema()
-    extractor_llm = fake_llm(responses=[{
+    extractor_ex = fake_executor(results=[ExtractionResult.model_validate({
         "items": [{"type": "decision", "content": "Target SMBs", "confidence": 0.9}]
-    }])
-    updater_llm = fake_llm(responses=[{
+    })])
+    updater_ex = fake_executor(results=[CanvasUpdateResult.model_validate({
         "blocks": [{"block_name": "customer_segments", "content": "SMBs"}]
-    }])
+    })])
     settings = Settings(telegram_token="t", openai_api_key="k", batch_size=2)
     return Orchestrator(
         storage=s,
-        extractor=Extractor(extractor_llm),
-        updater=CanvasUpdater(updater_llm),
+        extractor=Extractor(extractor_ex),
+        updater=CanvasUpdater(updater_ex),
         guardian=Guardian(llm=None),
         knowledge=None,
         settings=settings,
@@ -93,7 +95,7 @@ def test_check_silent_below_threshold(fake_llm):
     assert o.check_coherence(pid, 1, "vamos mudar o foco") is None
 
 
-def test_run_sync_applies_reconciliation(fake_llm):
+def test_run_sync_applies_reconciliation(fake_executor):
     import sqlite3
     from concierge.storage import Storage
     from concierge.extractor import Extractor
@@ -101,22 +103,24 @@ def test_run_sync_applies_reconciliation(fake_llm):
     from concierge.guardian import Guardian
     from concierge.reconciler import Reconciler
     from concierge.config import Settings
-    from concierge.models import ItemStatus
+    from concierge.models import (
+        ItemStatus, ExtractionResult, CanvasUpdateResult, ReconciliationResult,
+    )
 
     conn = sqlite3.connect(":memory:")
     s = Storage(conn); s.init_schema()
-    extractor_llm = fake_llm(responses=[{
+    extractor_ex = fake_executor(results=[ExtractionResult.model_validate({
         "items": [{"type": "hypothesis", "content": "SMBs will pay", "confidence": 0.9}]
-    }])
-    updater_llm = fake_llm(responses=[{"blocks": []}])
-    reconciler_llm = fake_llm(responses=[{
+    })])
+    updater_ex = fake_executor(results=[CanvasUpdateResult.model_validate({"blocks": []})])
+    reconciler_ex = fake_executor(results=[ReconciliationResult.model_validate({
         "transitions": [{"item_id": 1, "new_status": "validated", "supersedes_id": None}]
-    }])
+    })])
     settings = Settings(telegram_token="t", openai_api_key="k", batch_size=1)
     o = Orchestrator(
-        storage=s, extractor=Extractor(extractor_llm), updater=CanvasUpdater(updater_llm),
+        storage=s, extractor=Extractor(extractor_ex), updater=CanvasUpdater(updater_ex),
         guardian=Guardian(llm=None), knowledge=None, settings=settings,
-        reconciler=Reconciler(reconciler_llm),
+        reconciler=Reconciler(reconciler_ex),
     )
     pid = o.ingest_message(100, "Acme", 1, "ana", "smbs will pay", 1.0)
     o.run_sync(pid)
@@ -132,7 +136,7 @@ def test_check_silent_when_mode_silent(fake_llm):
     assert o.check_coherence(pid, 1, "vamos priorizar enterprise") is None
 
 
-def test_run_sync_builds_canvas_from_validated_items(fake_llm):
+def test_run_sync_builds_canvas_from_validated_items(fake_executor):
     import sqlite3
     from concierge.storage import Storage
     from concierge.extractor import Extractor
@@ -140,26 +144,28 @@ def test_run_sync_builds_canvas_from_validated_items(fake_llm):
     from concierge.guardian import Guardian
     from concierge.reconciler import Reconciler
     from concierge.config import Settings
-    from concierge.models import ItemStatus
+    from concierge.models import (
+        ItemStatus, ExtractionResult, CanvasUpdateResult, ReconciliationResult,
+    )
 
     conn = sqlite3.connect(":memory:")
     s = Storage(conn); s.init_schema()
-    extractor_llm = fake_llm(responses=[{
+    extractor_ex = fake_executor(results=[ExtractionResult.model_validate({
         "items": [{"type": "decision", "content": "Target SMBs", "confidence": 0.9}]
-    }])
+    })])
     # The updater fake will only return a block if it actually received the item.
     # We assert on the call it received, proving the item list was non-empty.
-    updater_llm = fake_llm(responses=[{
+    updater_ex = fake_executor(results=[CanvasUpdateResult.model_validate({
         "blocks": [{"block_name": "customer_segments", "content": "SMBs"}]
-    }])
-    reconciler_llm = fake_llm(responses=[{
+    })])
+    reconciler_ex = fake_executor(results=[ReconciliationResult.model_validate({
         "transitions": [{"item_id": 1, "new_status": "validated", "supersedes_id": None}]
-    }])
+    })])
     settings = Settings(telegram_token="t", openai_api_key="k", batch_size=1)
     o = Orchestrator(
-        storage=s, extractor=Extractor(extractor_llm), updater=CanvasUpdater(updater_llm),
+        storage=s, extractor=Extractor(extractor_ex), updater=CanvasUpdater(updater_ex),
         guardian=Guardian(llm=None), knowledge=None, settings=settings,
-        reconciler=Reconciler(reconciler_llm),
+        reconciler=Reconciler(reconciler_ex),
     )
     pid = o.ingest_message(100, "Acme", 1, "ana", "vamos focar em smbs", 1.0)
     o.run_sync(pid)
@@ -168,7 +174,7 @@ def test_run_sync_builds_canvas_from_validated_items(fake_llm):
     assert len(s.items_by_status(pid, [ItemStatus.VALIDATED])) == 1
     # ...and the canvas updater STILL received it (its user prompt must mention the item),
     # so a block was written rather than an empty canvas.
-    updater_call = updater_llm.calls[0]  # (system, user)
+    updater_call = updater_ex.calls[0]  # (agent, user, schema)
     assert "Target SMBs" in updater_call[1]
     blocks = s.get_blocks(pid)
     assert any(b["block_name"] == "customer_segments" for b in blocks)
@@ -183,7 +189,7 @@ class _SpyKnowledge:
         return "CTX"
 
 
-def test_run_sync_queries_knowledge_per_module(fake_llm):
+def test_run_sync_queries_knowledge_per_module(fake_executor):
     import sqlite3
     from concierge.storage import Storage
     from concierge.extractor import Extractor
@@ -191,19 +197,20 @@ def test_run_sync_queries_knowledge_per_module(fake_llm):
     from concierge.guardian import Guardian
     from concierge.reconciler import Reconciler
     from concierge.config import Settings
+    from concierge.models import ExtractionResult, CanvasUpdateResult, ReconciliationResult
 
     conn = sqlite3.connect(":memory:")
     s = Storage(conn); s.init_schema()
-    ex_llm = fake_llm(responses=[{"items": [
-        {"type": "decision", "content": "Target SMBs", "confidence": 0.9}]}])
-    up_llm = fake_llm(responses=[{"blocks": []}])
-    rc_llm = fake_llm(responses=[{"transitions": []}])
+    ex_ex = fake_executor(results=[ExtractionResult.model_validate({"items": [
+        {"type": "decision", "content": "Target SMBs", "confidence": 0.9}]})])
+    up_ex = fake_executor(results=[CanvasUpdateResult.model_validate({"blocks": []})])
+    rc_ex = fake_executor(results=[ReconciliationResult.model_validate({"transitions": []})])
     spy = _SpyKnowledge()
     settings = Settings(telegram_token="t", openai_api_key="k", batch_size=1)
     o = Orchestrator(
-        storage=s, extractor=Extractor(ex_llm), updater=CanvasUpdater(up_llm),
+        storage=s, extractor=Extractor(ex_ex), updater=CanvasUpdater(up_ex),
         guardian=Guardian(llm=None), knowledge=spy, settings=settings,
-        reconciler=Reconciler(rc_llm),
+        reconciler=Reconciler(rc_ex),
     )
     pid = o.ingest_message(100, "Acme", 1, "ana", "vamos focar em smbs", 1.0)
     o.run_sync(pid)
@@ -212,7 +219,7 @@ def test_run_sync_queries_knowledge_per_module(fake_llm):
     assert ("canvas_guide", "custom_framework") in filters         # updater
     assert ("custom_framework", "validation_guide") in filters     # reconciler
     # and the extractor actually received the context
-    assert "REFERENCE MATERIAL:\nCTX" in ex_llm.calls[0][1]
+    assert "REFERENCE MATERIAL:\nCTX" in ex_ex.calls[0][1]
 
 
 def test_check_coherence_uses_guardian_filter(fake_llm):

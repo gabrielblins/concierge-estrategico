@@ -1,4 +1,3 @@
-from concierge.llm.client import call_validated
 from concierge.models import CanvasUpdateResult
 from concierge.canvas import BMC_BLOCKS
 
@@ -12,8 +11,9 @@ SYSTEM = (
 
 
 class CanvasUpdater:
-    def __init__(self, llm):
-        self.llm = llm
+    def __init__(self, executor, agent=None):
+        self.executor = executor
+        self.agent = agent
 
     def update(self, active_items, current_blocks, context=""):
         items_txt = "\n".join(f"[{i['type']}] {i['content']}" for i in active_items)
@@ -21,7 +21,7 @@ class CanvasUpdater:
         user = f"STRATEGIC ITEMS:\n{items_txt}\n\nCURRENT CANVAS:\n{blocks_txt}"
         if context:
             user += f"\n\nREFERENCE MATERIAL:\n{context}"
-        result = call_validated(self.llm, SYSTEM, user, CanvasUpdateResult)
+        result = self.executor.run_validated(self.agent, user, CanvasUpdateResult)
         if result is None:
             return []
         return [b for b in result.blocks if b.block_name in BMC_BLOCKS]
