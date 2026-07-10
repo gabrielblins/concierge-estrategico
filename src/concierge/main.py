@@ -9,7 +9,9 @@ from concierge.knowledge import KnowledgeBase
 from concierge.orchestrator import Orchestrator
 from concierge.reconciler import Reconciler
 from concierge.participant import Participant
-from concierge.llm.factory import build_llm
+from concierge.agents.definitions import build_agents
+from concierge.agents.executor import AgentExecutor
+from concierge.agents.model_factory import agent_model, configure_env
 from concierge.bot import build_application
 from concierge.materials import MaterialService
 from concierge.stylist import Stylist
@@ -43,20 +45,23 @@ def main():
     conn = sqlite3.connect(settings.db_path, check_same_thread=False)
     storage = Storage(conn)
     storage.init_schema()
-    llm = build_llm(settings)
+    configure_env(settings)
+    model = agent_model(settings)
+    agents = build_agents(model)
+    executor = AgentExecutor()
     knowledge = KnowledgeBase(chromadb.PersistentClient(path=settings.chroma_path))
     orchestrator = Orchestrator(
         storage=storage,
-        extractor=Extractor(llm),
-        updater=CanvasUpdater(llm),
-        guardian=Guardian(llm),
+        extractor=Extractor(executor, agents["extractor"]),
+        updater=CanvasUpdater(executor, agents["canvas_updater"]),
+        guardian=Guardian(executor, agents["guardian"]),
         knowledge=knowledge,
         settings=settings,
-        reconciler=Reconciler(llm),
-        participant=Participant(llm),
+        reconciler=Reconciler(executor, agents["reconciler"]),
+        participant=Participant(executor, agents["participant_consider"], agents["participant_respond"]),
     )
-    material_service = MaterialService(llm, knowledge, storage)
-    stylist = Stylist(llm)
+    material_service = MaterialService(executor, agents["material_classifier"], knowledge, storage)
+    stylist = Stylist(executor, agents["stylist"])
     app = build_application(orchestrator, settings.telegram_token, material_service, stylist)
     app.run_polling()
 

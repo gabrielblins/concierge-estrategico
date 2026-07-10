@@ -13,6 +13,11 @@ This guide takes you from a fresh clone to a running bot in a real Telegram grou
   updates, reconciliation, and coherence checks).
 - ~80 MB free disk for the local embedding model (downloaded once on first
   RAG use).
+- Agents run on **Google ADK** (`LlmAgents` + `Runner` + `AgentExecutor`, with a
+  deterministic `MessageFunnelAgent` in front) — pinned via `google-adk==2.3.0`
+  and `litellm==1.83.7` in `requirements.txt`. `LLM_PROVIDER` still picks the
+  backing model: `openai` routes through LiteLLM, `gemini` uses ADK's native
+  Gemini support.
 
 ---
 

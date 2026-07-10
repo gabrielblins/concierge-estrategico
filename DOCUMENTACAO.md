@@ -125,8 +125,8 @@ Extract Recon Canvas Guard Participant          │
   └──────┴─────┬┴──────┴──────┘                 │
                ▼                                │
      ┌──────────────────┐   ┌───────────────┐  │
-     │ LLMClient        │   │ MaterialService│ │
-     │ (OpenAI│Gemini)  │   │ parse+classify │ │
+     │ Google ADK       │   │ MaterialService│ │
+     │ (LlmAgents│Runner)│   │ parse+classify │ │
      └──────────────────┘   └───────┬───────┘  │
                │                    ▼           │
                ▼            ┌──────────────┐   │
@@ -152,15 +152,17 @@ Extract Recon Canvas Guard Participant          │
 | MaterialService | `materials.py` | Parsers (PDF/DOCX/TXT/MD), classificação LLM, tabela de roteamento tipo→módulos. |
 | Knowledge Base | `knowledge.py` | ChromaDB: chunks com metadata de tipo, consultas filtradas. |
 | Storage | `storage.py` | SQLite (WAL) — fonte da verdade, com migrações automáticas. |
-| LLM Layer | `llm/` | Interface única (`complete_json`) + OpenAI + Gemini + factory + validação com retry. |
+| Agent Framework | `agents/` | Google ADK: `model_factory.py` (modelo por provedor), `definitions.py` (`LlmAgents` por papel), `executor.py` (`AgentExecutor`), `funnel.py` (`MessageFunnelAgent` determinístico). |
 | Web App | `webapp/` | FastAPI: `auth.py` (HMAC do initData), `server.py` (API read-only), `static/index.html` (grade). |
 
-### A camada de LLM
+### A camada de agentes (Google ADK)
 
-Toda a lógica fala com **uma interface**: `LLMClient.complete_json(system,
-user) -> dict`. Cada saída passa por `call_validated` — valida com Pydantic,
-tenta 1 vez em falha, descarta se persistir (**nunca grava lixo**). Trocar
-OpenAI ↔ Gemini é uma variável de ambiente.
+Toda a lógica fala com **uma interface**: `AgentExecutor.run_validated(agent,
+user_text, schema) -> dict | None`. Cada `LlmAgent` é montado por
+`definitions.build_agents(model)`; a saída passa por validação Pydantic com
+retry-uma-vez-e-descarta (**nunca grava lixo**). Trocar OpenAI ↔ Gemini
+continua sendo uma variável de ambiente (`LLM_PROVIDER`): `openai` roteia via
+LiteLLM, `gemini` usa o suporte nativo do ADK.
 
 ---
 
@@ -227,11 +229,12 @@ Comandos de consulta/gestão exigem `/start` antes.
 |---|---|---|
 | Linguagem | Python 3.14 | Ecossistema de bots e LLM |
 | Bot | `python-telegram-bot` 22.x | Long-polling, retry embutido |
-| LLM | OpenAI **ou** Gemini | `LLM_PROVIDER` — flexibilidade total |
+| Agentes | Google ADK (`google-adk==2.3.0`) — `LlmAgents` + `Runner` + `AgentExecutor` + `MessageFunnelAgent` determinístico | Framework padrão para orquestração de agentes, com retry/validação embutidos |
+| LLM | OpenAI **ou** Gemini | `LLM_PROVIDER` — flexibilidade total (OpenAI via `litellm==1.83.7`, Gemini nativo no ADK) |
 | Estado | SQLite em **WAL** | Zero-config + leitura concorrente pelo webapp |
 | RAG | ChromaDB com metadata | Consultas filtradas por tipo de material |
 | Web | FastAPI + página única sem framework | Leve, testável com TestClient |
-| Validação LLM | Pydantic via `call_validated` | Retry-uma-vez-e-descarta em todo lugar |
+| Validação LLM | Pydantic via `AgentExecutor.run_validated` | Retry-uma-vez-e-descarta em todo lugar |
 | Mini App em grupos | **Link direto** (`t.me/bot/app?startapp=`) | Botões `web_app` não funcionam em grupos; o `chat_id` chega **assinado** no `initData` |
 
 ### Segurança e resiliência
@@ -252,8 +255,8 @@ Comandos de consulta/gestão exigem `/start` antes.
 
 ### Qualidade
 
-- **133 testes**, todos sem rede (LLMs fake, Chroma efêmero, SQLite em memória,
-  TestClient), construídos com TDD.
+- **133 testes**, todos sem rede (`FakeAdkModel`/executor fake para os agentes,
+  Chroma efêmero, SQLite em memória, TestClient), construídos com TDD.
 - ~1.800 linhas em **25 módulos** pequenos e focados.
 - Cada feature passou por review por tarefa + review final de branch — o
   processo pegou, antes do merge: um bug de cooldown com espaços de id
@@ -306,6 +309,6 @@ src/concierge/
 ├── knowledge.py      # RAG tipado (ChromaDB)
 ├── storage.py        # SQLite WAL (fonte da verdade)
 ├── canvas.py · models.py · config.py · main.py
-├── llm/              # interface + OpenAI + Gemini + factory
+├── agents/           # Google ADK: model_factory + definitions + executor + funnel
 └── webapp/           # Mini App: auth HMAC + API + página BMC
 ```
