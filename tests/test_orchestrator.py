@@ -382,3 +382,20 @@ def test_participate_cooldown_survives_divergent_telegram_ids(fake_executor):
     p.contribution = strong
     out2 = o.participate(pid, 1005, "vamos priorizar o segmento educacao")
     assert out2 == "Liga com a hipótese X."
+
+
+def test_trivial_message_skips_knowledge_query(fake_executor):
+    conn = sqlite3.connect(":memory:")
+    s = Storage(conn); s.init_schema()
+
+    class _Spy:
+        def __init__(self): self.calls = 0
+        def query(self, *a, **k): self.calls += 1; return ""
+    spy = _Spy()
+    settings = Settings(telegram_token="t", openai_api_key="k")
+    o = Orchestrator(storage=s, extractor=None, updater=None,
+                     guardian=Guardian(fake_executor()), knowledge=spy,
+                     settings=settings, participant=None)
+    pid = s.get_or_create_project(100, "Acme")
+    assert o.check_coherence(pid, 1, "kkk ok") is None   # trivial -> prefilter blocks
+    assert spy.calls == 0                                  # no vector reads

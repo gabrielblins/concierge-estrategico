@@ -90,8 +90,13 @@ class Orchestrator:
         cached = getattr(self, "_last_funnel", None)
         if cached and cached[0] == key:
             return cached[1]
+        silent = self.storage.get_mode(project_id) == ProjectMode.SILENT
+        if silent or not self.guardian.looks_strategic(text):
+            result = {"decision": "none"}
+            self._last_funnel = (key, result)
+            return result
         gates = {
-            "silent": self.storage.get_mode(project_id) == ProjectMode.SILENT,
+            "silent": False,
             "participation_ok": self._participation_ok(project_id, text),
         }
         known = self.storage.items_by_status(
@@ -105,14 +110,11 @@ class Orchestrator:
             materials_g = self.knowledge.query(
                 project_id, text, material_types=types_for_module("guardian")
             )
-        if not self.guardian.looks_strategic(text):
-            result = {"decision": "none"}
-        else:
-            result = self._funnel().decide(
-                gates=gates, text=text, known_items=known, window=window,
-                items=items, materials_guardian=materials_g,
-                materials_participant=materials_p, style=style,
-            )
+        result = self._funnel().decide(
+            gates=gates, text=text, known_items=known, window=window,
+            items=items, materials_guardian=materials_g,
+            materials_participant=materials_p, style=style,
+        )
         self._last_funnel = (key, result)
         return result
 
